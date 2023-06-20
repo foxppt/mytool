@@ -27,11 +27,11 @@ var constraintSvcCmd = &cobra.Command{
   host:
     - ip: 示例节点1-IP
       port: 节点SSH端口
-      username: 节点SSH端口
+      username: 节点SSH用户名
       password: 节点SSH密码
     - ip: 示例节点2-IP
       port:节点SSH端口
-      username: 节点SSH端口
+      username: 节点SSH用户名
       password: 节点SSH密码
     # 如果有多个节点可以继续添加, 相反, 如果只有一个节点, 删除第二个节(示例节点2)
   # Ingress CIDR定义
