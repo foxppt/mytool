@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var svcConfPath1 string
+var svcConfPath string
 
 // rebuildSvcCmd represents the rebuildSvc command
 var rebuildSvcCmd = &cobra.Command{
@@ -28,19 +28,15 @@ var rebuildSvcCmd = &cobra.Command{
 		if err != nil {
 			panic(err)
 		}
-		if len(args) == 1 {
-			serviceConfig := config.GetSvcConfig(svcConfPath1)
-			if serviceConfig == nil {
-				logger.SugarLogger.Panicln("读取service配置失败")
-			}
-			swarmopt.RebuildSvc(ctx, dockerClient, serviceConfig)
-		} else {
-			logger.SugarLogger.Errorln("不允许指定多个配置文件! ")
+		serviceConfig := config.GetSvcConfig(svcConfPath)
+		if serviceConfig == nil {
+			logger.SugarLogger.Panicln("读取service配置失败")
 		}
+		swarmopt.RebuildSvc(ctx, dockerClient, serviceConfig)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(rebuildSvcCmd)
-	recordeSvcCmd.Flags().StringVar(&svcConfPath1, "config", "services.json", "服务配置文件, 默认为当前目录 services.json")
+	rebuildSvcCmd.Flags().StringVar(&svcConfPath, "config", "services.json", "加载服务配置文件")
 }

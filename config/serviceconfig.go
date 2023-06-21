@@ -20,7 +20,7 @@ func GetSvcConfig(configpath string) *[]ServiceConfig {
 	}
 
 	if serviceConfig == nil {
-		logger.SugarLogger.Warnln("未在service.json中解析到服务配置, 程序将退出 ")
+		logger.SugarLogger.Warnln("未在", configpath, "中解析到服务配置, 程序将退出 ")
 		return nil
 	}
 	return serviceConfig

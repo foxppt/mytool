@@ -86,7 +86,7 @@ func RecordSvc(ctx context.Context, dockerClient *client.Client, hostConfig *con
 	if err != nil {
 		panic(err)
 	}
-	logger.SugarLogger.Infoln("服务创建信息已被保存到services.json ")
+	logger.SugarLogger.Infoln("服务创建信息已被保存到", svcConf)
 }
 
 // DelService 清空当前swarm的service
