@@ -14,6 +14,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var svcConf string
+
 // recordeSvcCmd represents the recodeSvc command
 var recordeSvcCmd = &cobra.Command{
 	Use:   "recordeSvc",
@@ -36,10 +38,11 @@ var recordeSvcCmd = &cobra.Command{
 		if err != nil {
 			logger.SugarLogger.Fatalln(err)
 		}
-		swarmopt.RecordSvc(ctx, dockerClient, hostConfig, db)
+		swarmopt.RecordSvc(ctx, dockerClient, hostConfig, db, svcConf)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(recordeSvcCmd)
+	recordeSvcCmd.Flags().StringVar(&svcConf, "config", "services.json", "服务配置文件, 默认为当前目录 services.json")
 }

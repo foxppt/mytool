@@ -60,9 +60,9 @@ var constraintSvcCmd = &cobra.Command{
 			logger.SugarLogger.Fatalln(err)
 		}
 
-		swarmopt.RecordSvc(ctx, dockerClient, hostConfig, db)
+		swarmopt.RecordSvc(ctx, dockerClient, hostConfig, db, "services.json")
 
-		serviceConfig := config.GetSvcConfig()
+		serviceConfig := config.GetSvcConfig("services.json")
 		if serviceConfig == nil {
 			logger.SugarLogger.Panicln("读取service配置失败")
 		}

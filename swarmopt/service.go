@@ -17,7 +17,7 @@ import (
 )
 
 // RecordSvc 记录swarm中service的信息
-func RecordSvc(ctx context.Context, dockerClient *client.Client, hostConfig *config.Config, db *sql.DB) {
+func RecordSvc(ctx context.Context, dockerClient *client.Client, hostConfig *config.Config, db *sql.DB, svcConf string) {
 	var svcStructs []config.ServiceConfig
 
 	serviceList, err := dockerClient.ServiceList(ctx, types.ServiceListOptions{})
@@ -67,17 +67,17 @@ func RecordSvc(ctx context.Context, dockerClient *client.Client, hostConfig *con
 	}
 	// 判断services.json是否存在，如果存在就备份，备份文件名为services.json_时间戳
 	timestamp := time.Now().Unix()
-	if _, err := os.Stat("services.json"); !os.IsNotExist(err) {
+	if _, err := os.Stat(svcConf); !os.IsNotExist(err) {
 		// 备份文件名为services.json_时间戳
-		logger.SugarLogger.Infoln("services.json已经存在")
-		err := os.Rename("services.json", fmt.Sprintf("services.json_%d", timestamp))
+		logger.SugarLogger.Infoln(svcConf, "已经存在")
+		err := os.Rename(svcConf, fmt.Sprintf(svcConf+"_%d", timestamp))
 		if err != nil {
-			logger.SugarLogger.Errorf("services.json 备份文件失败：", err)
+			logger.SugarLogger.Errorln(svcConf, "备份文件失败：", err)
 			return
 		}
-		logger.SugarLogger.Infoln("services.json 备份, 文件名为: ", fmt.Sprintf("services.json_%d", timestamp))
+		logger.SugarLogger.Infoln(svcConf, "备份, 文件名为: ", fmt.Sprintf(svcConf+"_%d", timestamp))
 	}
-	f, err := os.Create("services.json")
+	f, err := os.Create(svcConf)
 	if err != nil {
 		panic(err)
 	}

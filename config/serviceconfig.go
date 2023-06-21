@@ -8,8 +8,8 @@ import (
 
 var serviceConfig *[]ServiceConfig
 
-func GetSvcConfig() *[]ServiceConfig {
-	data, err := os.ReadFile("services.json")
+func GetSvcConfig(configpath string) *[]ServiceConfig {
+	data, err := os.ReadFile(configpath)
 	if err != nil {
 		logger.SugarLogger.Errorln(err)
 		os.Exit(1)
