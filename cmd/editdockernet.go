@@ -102,7 +102,6 @@ var editdockernetCmd = &cobra.Command{
 		}
 		// 加入swarm
 		for _, host := range hostConfig.Host {
-
 			for _, noderole := range nodeRoles {
 				if host.IP == noderole.nodeAddr && !noderole.isManager {
 					swarmopt.JoinSwarm(host, workerTK)
@@ -112,7 +111,6 @@ var editdockernetCmd = &cobra.Command{
 					logger.SugarLogger.Errorln("找到一个没办法确定角色的主机", host.IP, "它未加入这个swarm")
 				}
 			}
-
 		}
 		// 重建service
 		serviceConfig := config.GetSvcConfig("services.json")
