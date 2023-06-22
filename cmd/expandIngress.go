@@ -38,6 +38,12 @@ var expandIngressCmd = &cobra.Command{
   ingress:
     subnet: 172.29.0.1/20 # Ingress网络CIDR定义, 可以自行修改
     gateway: 172.29.0.254 # Ingress网络网关
+  # docker_gwbridge CIDR定义
+  docker_gwbridge:
+	subnet: 172.30.0.1/24 # docker_gwbridge网络CIDR定义, 可以自行修改
+	gateway: 172.30.0.254 # docker_gwbridge网络网关
+  # dockerd bip网段(也就是docker0这个网卡的网段)
+  bip: 172.31.0.1/24 # docker0网卡的网段, 根据实际情况修改
   # 数据库连接信息
   mysql:
     host: 数据库ip

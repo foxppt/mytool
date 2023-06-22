@@ -20,7 +20,7 @@ var rebuildSvcCmd = &cobra.Command{
 	Use:   "rebuildSvc",
 	Short: "重建service",
 	Long: `rebuildSvc: 
-  根据当前目录的services.json文件
+  根据指定的服务配置 (不指定则为当前目录的services.json) 文件
   重建service`,
 	Run: func(cmd *cobra.Command, args []string) {
 		var ctx = context.Background()

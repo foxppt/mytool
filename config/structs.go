@@ -1,16 +1,23 @@
 package config
 
+type HostConf struct {
+	IP       string `yaml:"ip"`
+	Port     int    `yaml:"port"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+}
+
 type Config struct {
-	Host []struct {
-		IP       string `yaml:"ip"`
-		Port     int    `yaml:"port"`
-		Username string `yaml:"username"`
-		Password string `yaml:"password"`
-	} `yaml:"host"`
+	Host    []HostConf `yaml:"host"`
 	Ingress struct {
 		Subnet  string `yaml:"subnet"`
 		Gateway string `yaml:"gateway"`
 	} `yaml:"ingress"`
+	Gwbridge struct {
+		Subnet  string `yaml:"subnet"`
+		Gateway string `yaml:"gateway"`
+	} `yaml:"docker_gwbridge"`
+	BIP   string `yaml:"bip"`
 	Mysql struct {
 		Host   string `yaml:"host"`
 		Port   string `yaml:"port"`
