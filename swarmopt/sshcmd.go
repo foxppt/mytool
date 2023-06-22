@@ -7,7 +7,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-func execCMD(hostIP string, hostPort int, userName, userPass, command string) error {
+func execCMD(hostIP string, hostPort int, userName, userPass, command string) (string, error) {
 	sshConfig := &ssh.ClientConfig{
 		User: userName,
 		Auth: []ssh.AuthMethod{
@@ -31,9 +31,10 @@ func execCMD(hostIP string, hostPort int, userName, userPass, command string) er
 	defer session.Close()
 
 	// 运行命令
-	cmd := command
-	if err := session.Run(cmd); err != nil {
-		return err
+	output, err := session.CombinedOutput(command)
+	if err != nil {
+		return "", err
 	}
-	return nil
+
+	return string(output), nil
 }

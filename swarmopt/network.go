@@ -31,7 +31,7 @@ func DelIngress(ctx context.Context, dockerClient *client.Client, config *config
 	logger.SugarLogger.Infoln("正在重启dockerd, 请等待...")
 	cmd := "systemctl restart docker"
 	for _, host := range config.Host {
-		err = execCMD(host.IP, host.Port, host.Username, host.Password, cmd)
+		_, err = execCMD(host.IP, host.Port, host.Username, host.Password, cmd)
 		if err != nil {
 			logger.SugarLogger.Panicln(host.IP, "重启dockerd失败:", err)
 		}
@@ -78,7 +78,7 @@ func RebuildIngress(ctx context.Context, dockerClient *client.Client, config *co
 	logger.SugarLogger.Infoln("正在重启dockerd, 请等待...")
 	cmd := "systemctl restart docker"
 	for _, host := range config.Host {
-		err = execCMD(host.IP, host.Port, host.Username, host.Password, cmd)
+		_, err = execCMD(host.IP, host.Port, host.Username, host.Password, cmd)
 		if err != nil {
 			logger.SugarLogger.Panicln(host.IP, "重启dockerd失败:", err)
 		}
@@ -101,7 +101,7 @@ func EditBipConf(host config.HostConf, bip string) {
 			logger.SugarLogger.DPanicln(err)
 		}
 
-		err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
+		_, err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
 		if err != nil {
 			logger.SugarLogger.Panicln(host.IP, "重启docker失败")
 		}
@@ -137,12 +137,12 @@ func EditBipConf(host config.HostConf, bip string) {
 					logger.SugarLogger.DPanicln(err)
 				}
 
-				err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
+				_, err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
 				if err != nil {
 					logger.SugarLogger.Panicln(host.IP, "重启docker失败")
 				}
 			} else {
-				err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
+				_, err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
 				if err != nil {
 					logger.SugarLogger.Panicln(host.IP, "重启docker失败")
 				}
@@ -159,7 +159,7 @@ func EditBipConf(host config.HostConf, bip string) {
 				logger.SugarLogger.DPanicln(err)
 			}
 
-			err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
+			_, err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
 			if err != nil {
 				logger.SugarLogger.Panicln(host.IP, "重启docker失败")
 			}

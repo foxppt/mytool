@@ -5,6 +5,7 @@ import (
 	"errors"
 	"myTool/config"
 	"myTool/logger"
+	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
@@ -14,7 +15,7 @@ import (
 // LeaveSwarm 离开swarm
 func LeaveSwarm(ctx context.Context, dockerClient *client.Client, host config.HostConf, isLeader bool) {
 	if !isLeader {
-		err := execCMD(host.IP, host.Port, host.Username, host.Password, "docker swarm leave -f")
+		_, err := execCMD(host.IP, host.Port, host.Username, host.Password, "docker swarm leave -f")
 		if err != nil {
 			logger.SugarLogger.Panicln("从节点", host.IP, "离开swarm失败: ", err)
 		}
@@ -37,12 +38,22 @@ func InitSwarm(ctx context.Context, dockerClient *client.Client, listenAddr stri
 }
 
 // JoinSwarm 加入swarm
-func JoinSwarm(host config.HostConf, joinToken string) {
-	err := execCMD(host.IP, host.Port, host.Username, host.Password, joinToken)
+func JoinSwarm(host config.HostConf, joinToken string) error {
+	// 判断如果是本机就continue跳过, 因为本机不能加入第二次
+	resp, err := execCMD(host.IP, host.Port, host.Username, host.Password, "docker node ls")
+	if err != nil {
+		logger.SugarLogger.Panicln(err)
+	}
+	if strings.Contains(resp, "Active") {
+		err = errors.New("这个节点是主节点, 已经跳过")
+		return err
+	}
+	_, err = execCMD(host.IP, host.Port, host.Username, host.Password, joinToken)
 	if err != nil {
 		logger.SugarLogger.Errorln(host.IP, "加入swarm失败: ", err)
 	}
 	logger.SugarLogger.Infoln(host.IP, "加入swarm成功. ")
+	return nil
 }
 
 // GetSwarmLeader 获取Swarm节点角色

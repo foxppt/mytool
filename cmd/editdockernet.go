@@ -56,10 +56,12 @@ var editdockernetCmd = &cobra.Command{
 		if err != nil {
 			panic(err)
 		}
+
 		hostConfig := config.GetHostConfig()
 		if hostConfig == nil {
 			os.Exit(0)
 		}
+
 		db, err := swarmopt.InitDB(hostConfig)
 		if err != nil {
 			logger.SugarLogger.Fatalln(err)
@@ -100,18 +102,17 @@ var editdockernetCmd = &cobra.Command{
 		}
 		// 加入swarm
 		for _, host := range hostConfig.Host {
-			// 判断不是本机, 如果是本机就continue跳过, 因为本机不能加入第二次
-			if host.IP != "" {
-				for _, noderole := range nodeRoles {
-					if host.IP == noderole.nodeAddr && !noderole.isManager {
-						swarmopt.JoinSwarm(host, workerTK)
-					} else if host.IP == noderole.nodeAddr && noderole.isManager {
-						swarmopt.JoinSwarm(host, managerTK)
-					}
+
+			for _, noderole := range nodeRoles {
+				if host.IP == noderole.nodeAddr && !noderole.isManager {
+					swarmopt.JoinSwarm(host, workerTK)
+				} else if host.IP == noderole.nodeAddr && noderole.isManager {
+					swarmopt.JoinSwarm(host, managerTK)
+				} else {
+					logger.SugarLogger.Errorln("找到一个没办法确定角色的主机", host.IP, "它未加入这个swarm")
 				}
-			} else {
-				continue
 			}
+
 		}
 		// 重建service
 		serviceConfig := config.GetSvcConfig("services.json")
