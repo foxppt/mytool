@@ -44,7 +44,7 @@ func JoinSwarm(host config.HostConf, joinToken string) error {
 	if err != nil {
 		logger.SugarLogger.Panicln(err)
 	}
-	if strings.Contains(resp, "Active") {
+	if strings.Contains(resp, "Active") && strings.Contains(resp, "Leader") {
 		err = errors.New("这个节点是主节点, 已经跳过")
 		return err
 	}
