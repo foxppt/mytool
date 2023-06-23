@@ -108,7 +108,7 @@ func EditBipConf(host config.HostConf, bipStr string) {
 		if err != nil {
 			logger.SugarLogger.Panicln(host.IP, "重启docker失败", resp)
 		}
-		logger.SugarLogger.Infoln("/etc/docker/daemon.json创建成功. ")
+		logger.SugarLogger.Infoln("/etc/docker/daemon.json创建成功, bip被设置为: ", bipStr)
 
 		logger.SugarLogger.Infoln("正在重启dockerd, 请等待...")
 		_, err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
@@ -123,6 +123,22 @@ func EditBipConf(host config.HostConf, bipStr string) {
 		resp, err := execCMD(host.IP, host.Port, host.Username, host.Password, cmd)
 		if err != nil {
 			logger.SugarLogger.Panicln("获取/etc/docker/daemon.json 内容失败")
+		}
+		if resp == "" {
+			logger.SugarLogger.Infoln("/etc/docker/daemon.json文件为空")
+			cmd = "touch /etc/docker/daemon.json && " + "echo " + "{\\\"bip\\\": " + "\\\"" + bipStr + "\\\"" + "} " + "> /etc/docker/daemon.json"
+			resp, err := execCMD(host.IP, host.Port, host.Username, host.Password, cmd)
+			if err != nil {
+				logger.SugarLogger.Panicln(host.IP, "重启docker失败", resp)
+			}
+			logger.SugarLogger.Infoln("bip被设置为: ", bipStr)
+
+			logger.SugarLogger.Infoln("正在重启dockerd, 请等待...")
+			_, err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
+			if err != nil {
+				logger.SugarLogger.Panicln(host.IP, "重启docker失败")
+			}
+			return
 		}
 		content := []byte(resp)
 		var config map[string]interface{}
@@ -165,7 +181,7 @@ func EditBipConf(host config.HostConf, bipStr string) {
 			if bip == bipStr {
 				// value等于172.31.1.1/24,不做任何处理
 				logger.SugarLogger.Infoln("/etc/docker/daemon.json中bip配置与config/config.yml中指定一致. ")
-				logger.SugarLogger.Infoln("正在重启dockerd, 请等待...")
+				logger.SugarLogger.Infoln("为确保配置生效, 正在重启dockerd, 请等待...")
 				_, err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
 				if err != nil {
 					logger.SugarLogger.Panicln(host.IP, "重启docker失败")
@@ -192,7 +208,7 @@ func EditBipConf(host config.HostConf, bipStr string) {
 				if err != nil {
 					logger.SugarLogger.Panicln(host.IP, "重启docker失败")
 				}
-				logger.SugarLogger.Infoln("/etc/docker/daemon.json中bip配置已被修改. ")
+				logger.SugarLogger.Infoln("/etc/docker/daemon.json中bip配置已被修改, 现在为: ", bipStr)
 			}
 		}
 	}
@@ -254,5 +270,5 @@ func Rebuildgwbr(ctx context.Context, dockerClient *client.Client, config *confi
 	if err != nil {
 		panic(err)
 	}
-	logger.SugarLogger.Infoln("docker_gwbridge网络", resp.ID, "创建成功 ")
+	logger.SugarLogger.Infoln("docker_gwbridge网络", resp.ID, "创建成功, subnet: ", config.Gwbridge.Subnet)
 }

@@ -50,9 +50,9 @@ func JoinSwarm(host config.HostConf, joinToken string) error {
 		err := errors.New("这个节点是当前主节点, 已经跳过")
 		return err
 	}
-	_, err = execCMD(host.IP, host.Port, host.Username, host.Password, joinToken)
+	resp, err = execCMD(host.IP, host.Port, host.Username, host.Password, joinToken)
 	if err != nil {
-		logger.SugarLogger.Errorln(host.IP, "加入swarm失败: ", err)
+		logger.SugarLogger.Errorln(host.IP, "加入swarm失败: ", resp, err)
 	}
 	logger.SugarLogger.Infoln(host.IP, "加入swarm成功. ")
 	return nil
