@@ -102,18 +102,19 @@ func EditBipConf(host config.HostConf, bipStr string) {
 	if strings.Contains(fileExists, "false") {
 		// 文件不存在,创建文件
 		logger.SugarLogger.Infoln("/etc/docker/daemon.json不存在, 将被创建. ")
-		cmd = "touch /etc/docker/daemon.json && " + "echo " + `{"bip": ` + bipStr + `} ` + "> /etc/docker/daemon.json"
+		cmd = "touch /etc/docker/daemon.json && " + "echo " + "{\\\"bip\\\": " + "\\\"" + bipStr + "\\\"" + "} " + "> /etc/docker/daemon.json"
+		// logger.SugarLogger.Infoln("创建命令为: ", cmd)
 		resp, err := execCMD(host.IP, host.Port, host.Username, host.Password, cmd)
 		if err != nil {
 			logger.SugarLogger.Panicln(host.IP, "重启docker失败", resp)
 		}
+		logger.SugarLogger.Infoln("/etc/docker/daemon.json创建成功. ")
 
 		logger.SugarLogger.Infoln("正在重启dockerd, 请等待...")
 		_, err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
 		if err != nil {
 			logger.SugarLogger.Panicln(host.IP, "重启docker失败")
 		}
-		logger.SugarLogger.Infoln("/etc/docker/daemon.json创建成功. ")
 
 	} else if strings.Contains(fileExists, "true") {
 		// 文件存在,解析文件
