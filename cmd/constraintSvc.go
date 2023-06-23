@@ -66,7 +66,7 @@ var constraintSvcCmd = &cobra.Command{
 			logger.SugarLogger.Fatalln(err)
 		}
 
-		swarmopt.RecordSvc(ctx, dockerClient, hostConfig, db, "services.json")
+		swarmopt.RecordGlobeSvc(ctx, dockerClient, hostConfig, db, "services.json")
 
 		serviceConfig := config.GetSvcConfig("services.json")
 		if serviceConfig == nil {

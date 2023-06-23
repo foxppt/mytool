@@ -69,11 +69,11 @@ var expandIngressCmd = &cobra.Command{
 		if err != nil {
 			logger.SugarLogger.Fatalln(err)
 		}
-		swarmopt.RecordSvc(ctx, dockerClient, hostConfig, db, "services.json")
+		swarmopt.RecordGlobeSvc(ctx, dockerClient, hostConfig, db, "services.json")
 		swarmopt.DelService(ctx, dockerClient)
 		swarmopt.DelIngress(ctx, dockerClient, hostConfig)
 		swarmopt.RebuildIngress(ctx, dockerClient, hostConfig)
-		swarmopt.RebuildSvc(ctx, dockerClient, serviceConfig)
+		swarmopt.RebuildGlobeSvc(ctx, dockerClient, serviceConfig)
 	},
 }
 

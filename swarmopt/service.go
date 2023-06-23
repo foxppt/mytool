@@ -17,7 +17,7 @@ import (
 )
 
 // RecordSvc 记录swarm中service的信息
-func RecordSvc(ctx context.Context, dockerClient *client.Client, hostConfig *config.Config, db *sql.DB, svcConf string) {
+func RecordGlobeSvc(ctx context.Context, dockerClient *client.Client, hostConfig *config.Config, db *sql.DB, svcConf string) {
 	var svcStructs []config.ServiceConfig
 
 	serviceList, err := dockerClient.ServiceList(ctx, types.ServiceListOptions{})
@@ -108,7 +108,7 @@ func DelService(ctx context.Context, dockerClient *client.Client) {
 }
 
 // RebuildSvc 根据已记录信息重新投递service
-func RebuildSvc(ctx context.Context, dockerClient *client.Client, serviceConfig *[]config.ServiceConfig) error {
+func RebuildGlobeSvc(ctx context.Context, dockerClient *client.Client, serviceConfig *[]config.ServiceConfig) error {
 	// networkList, err := dockerClient.NetworkList(ctx, types.NetworkListOptions{})
 	// if err != nil {
 	// 	panic(err)

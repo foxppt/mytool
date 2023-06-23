@@ -38,7 +38,7 @@ var recordeSvcCmd = &cobra.Command{
 		if err != nil {
 			logger.SugarLogger.Fatalln(err)
 		}
-		swarmopt.RecordSvc(ctx, dockerClient, hostConfig, db, svcConf)
+		swarmopt.RecordGlobeSvc(ctx, dockerClient, hostConfig, db, svcConf)
 	},
 }
 

@@ -32,7 +32,7 @@ var rebuildSvcCmd = &cobra.Command{
 		if serviceConfig == nil {
 			logger.SugarLogger.Panicln("读取service配置失败")
 		}
-		swarmopt.RebuildSvc(ctx, dockerClient, serviceConfig)
+		swarmopt.RebuildGlobeSvc(ctx, dockerClient, serviceConfig)
 	},
 }
 

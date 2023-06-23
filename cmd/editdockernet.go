@@ -14,10 +14,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var isgeoglobe bool
+var isGeoglobe string
 
-// editdockernetCmd represents the editdockernet command
-var editdockernetCmd = &cobra.Command{
+// editDockerNetCmd represents the editdockernet command
+var editDockerNetCmd = &cobra.Command{
 	Use:   "editdockernet",
 	Short: "重新指定docker相关网络占用的ip段",
 	Long: `重新指定docker相关网络占用的ip段, 以规避网段冲突.
@@ -64,65 +64,110 @@ var editdockernetCmd = &cobra.Command{
 			os.Exit(0)
 		}
 
-		db, err := swarmopt.InitDB(hostConfig)
-		if err != nil {
-			logger.SugarLogger.Fatalln(err)
-		}
 		var nodeRoles []struct {
 			nodeAddr  string
 			isManager bool
 		}
 
-		swarmopt.RecordSvc(ctx, dockerClient, hostConfig, db, "services.json")
-		swarmopt.DelService(ctx, dockerClient)
-		for _, host := range hostConfig.Host {
-			swarmopt.EditBipConf(host, hostConfig.BIP)
-			// 判断主从节点
-			isLeader, err := swarmopt.GetSwarmNodeRole(ctx, dockerClient, host)
+		if isGeoglobe == "true" {
+			db, err := swarmopt.InitDB(hostConfig)
 			if err != nil {
-				logger.SugarLogger.Panicln("获取节点角色失败:", err)
+				logger.SugarLogger.Fatalln(err)
 			}
-			nodeRoles = append(nodeRoles, struct {
-				nodeAddr  string
-				isManager bool
-			}{nodeAddr: host.IP, isManager: isLeader})
-			// 依次退出swarm
-			swarmopt.LeaveSwarm(ctx, dockerClient, host, isLeader)
-			// 依次删除docker_gwbridge
-			swarmopt.Delgwbr(ctx, dockerClient, hostConfig)
-			// 依次创建docker_gwbridge
-			swarmopt.Rebuildgwbr(ctx, dockerClient, hostConfig)
-		}
 
-		// 主节点创建swarm
-		swarmopt.InitSwarm(ctx, dockerClient, ":2377")
+			swarmopt.RecordGlobeSvc(ctx, dockerClient, hostConfig, db, "services.json")
+			swarmopt.DelService(ctx, dockerClient)
+			for _, host := range hostConfig.Host {
+				swarmopt.EditBipConf(host, hostConfig.BIP)
+				// 判断主从节点
+				isLeader, err := swarmopt.GetSwarmNodeRole(ctx, dockerClient, host)
+				if err != nil {
+					logger.SugarLogger.Panicln("获取节点角色失败:", err)
+				}
+				nodeRoles = append(nodeRoles, struct {
+					nodeAddr  string
+					isManager bool
+				}{nodeAddr: host.IP, isManager: isLeader})
+				// 依次退出swarm
+				swarmopt.LeaveSwarm(ctx, dockerClient, host, isLeader)
+				// 依次删除docker_gwbridge
+				swarmopt.Delgwbr(ctx, dockerClient, hostConfig)
+				// 依次创建docker_gwbridge
+				swarmopt.Rebuildgwbr(ctx, dockerClient, hostConfig)
+			}
 
-		// 获取join token
-		managerTK, workerTK, err := swarmopt.GetSwarmJoinTK(ctx, dockerClient)
-		if err != nil {
-			logger.SugarLogger.Panicln(err)
-		}
-		logger.SugarLogger.Infoln("主节点加入的token为: ", managerTK)
-		logger.SugarLogger.Infoln("从节点加入的token为: ", workerTK)
-		// 加入swarm
-		for _, host := range hostConfig.Host {
-			for _, noderole := range nodeRoles {
-				if host.IP == noderole.nodeAddr && !noderole.isManager {
-					swarmopt.JoinSwarm(host, workerTK)
-				} else if host.IP == noderole.nodeAddr && noderole.isManager {
-					swarmopt.JoinSwarm(host, managerTK)
+			// 主节点创建swarm
+			swarmopt.InitSwarm(ctx, dockerClient, ":2377")
+
+			// 获取join token
+			managerTK, workerTK, err := swarmopt.GetSwarmJoinTK(ctx, dockerClient)
+			if err != nil {
+				logger.SugarLogger.Panicln(err)
+			}
+			logger.SugarLogger.Infoln("主节点加入的token为: ", managerTK)
+			logger.SugarLogger.Infoln("从节点加入的token为: ", workerTK)
+			// 加入swarm
+			for _, host := range hostConfig.Host {
+				for _, noderole := range nodeRoles {
+					if host.IP == noderole.nodeAddr && !noderole.isManager {
+						swarmopt.JoinSwarm(host, workerTK)
+					} else if host.IP == noderole.nodeAddr && noderole.isManager {
+						swarmopt.JoinSwarm(host, managerTK)
+					}
 				}
 			}
-		}
-		// 重建service
-		serviceConfig := config.GetSvcConfig("services.json")
-		if serviceConfig != nil {
-			swarmopt.RebuildSvc(ctx, dockerClient, serviceConfig)
+			// 重建service
+			serviceConfig := config.GetSvcConfig("services.json")
+			if serviceConfig != nil {
+				swarmopt.RebuildGlobeSvc(ctx, dockerClient, serviceConfig)
+			}
+		} else if isGeoglobe == "false" {
+			for _, host := range hostConfig.Host {
+				swarmopt.EditBipConf(host, hostConfig.BIP)
+				// 判断主从节点
+				isLeader, err := swarmopt.GetSwarmNodeRole(ctx, dockerClient, host)
+				if err != nil {
+					logger.SugarLogger.Panicln("获取节点角色失败:", err)
+				}
+				nodeRoles = append(nodeRoles, struct {
+					nodeAddr  string
+					isManager bool
+				}{nodeAddr: host.IP, isManager: isLeader})
+				// 依次退出swarm
+				swarmopt.LeaveSwarm(ctx, dockerClient, host, isLeader)
+				// 依次删除docker_gwbridge
+				swarmopt.Delgwbr(ctx, dockerClient, hostConfig)
+				// 依次创建docker_gwbridge
+				swarmopt.Rebuildgwbr(ctx, dockerClient, hostConfig)
+			}
+
+			// 主节点创建swarm
+			swarmopt.InitSwarm(ctx, dockerClient, ":2377")
+
+			// 获取join token
+			managerTK, workerTK, err := swarmopt.GetSwarmJoinTK(ctx, dockerClient)
+			if err != nil {
+				logger.SugarLogger.Panicln(err)
+			}
+			logger.SugarLogger.Infoln("主节点加入的token为: ", managerTK)
+			logger.SugarLogger.Infoln("从节点加入的token为: ", workerTK)
+			// 加入swarm
+			for _, host := range hostConfig.Host {
+				for _, noderole := range nodeRoles {
+					if host.IP == noderole.nodeAddr && !noderole.isManager {
+						swarmopt.JoinSwarm(host, workerTK)
+					} else if host.IP == noderole.nodeAddr && noderole.isManager {
+						swarmopt.JoinSwarm(host, managerTK)
+					}
+				}
+			}
+		} else {
+			logger.SugarLogger.Errorln("value of isgeoglobe is invalid.")
 		}
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(editdockernetCmd)
-	rebuildSvcCmd.Flags().BoolVar(&isgeoglobe, "isgeoglobe", false, "是否存在geoglobe服务")
+	rootCmd.AddCommand(editDockerNetCmd)
+	editDockerNetCmd.Flags().StringVar(&isGeoglobe, "isgeoglobe", "false", "是否存在geoglobe服务")
 }
