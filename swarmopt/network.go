@@ -254,5 +254,5 @@ func Rebuildgwbr(ctx context.Context, dockerClient *client.Client, config *confi
 	if err != nil {
 		panic(err)
 	}
-	logger.SugarLogger.Infof("docker_gwbridge网络%s创建成功 ", resp.ID)
+	logger.SugarLogger.Infoln("docker_gwbridge网络", resp.ID, "创建成功 ")
 }
