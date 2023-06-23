@@ -33,7 +33,7 @@ func execCMD(hostIP string, hostPort int, userName, userPass, command string) (s
 	// 运行命令
 	output, err := session.CombinedOutput(command)
 	if err != nil {
-		return "", err
+		return string(output), err
 	}
 
 	return string(output), nil

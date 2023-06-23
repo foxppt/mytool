@@ -14,6 +14,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var isgeoglobe bool
+
 // editdockernetCmd represents the editdockernet command
 var editdockernetCmd = &cobra.Command{
 	Use:   "editdockernet",
@@ -32,7 +34,7 @@ var editdockernetCmd = &cobra.Command{
 	  port:节点SSH端口
 	  username: 节点SSH用户名
 	  password: 节点SSH密码
-	# 如果有多个节点可以继续添加, 相反, 如果只有一个节点, 删除第二个节(示例节点2)
+    # 如果有多个节点可以继续添加, 相反, 如果只有一个节点, 删除第二个节(示例节点2)
   # Ingress CIDR定义
   ingress:
     subnet: 172.29.0.1/20 # Ingress网络CIDR定义, 可以自行修改
@@ -76,7 +78,7 @@ var editdockernetCmd = &cobra.Command{
 		for _, host := range hostConfig.Host {
 			swarmopt.EditBipConf(host, hostConfig.BIP)
 			// 判断主从节点
-			isLeader, err := swarmopt.GetSwarmNodeRole(ctx, dockerClient, host.IP)
+			isLeader, err := swarmopt.GetSwarmNodeRole(ctx, dockerClient, host)
 			if err != nil {
 				logger.SugarLogger.Panicln("获取节点角色失败:", err)
 			}
@@ -100,6 +102,8 @@ var editdockernetCmd = &cobra.Command{
 		if err != nil {
 			logger.SugarLogger.Panicln(err)
 		}
+		logger.SugarLogger.Infoln("主节点加入的token为: ", managerTK)
+		logger.SugarLogger.Infoln("从节点加入的token为: ", workerTK)
 		// 加入swarm
 		for _, host := range hostConfig.Host {
 			for _, noderole := range nodeRoles {
@@ -107,20 +111,18 @@ var editdockernetCmd = &cobra.Command{
 					swarmopt.JoinSwarm(host, workerTK)
 				} else if host.IP == noderole.nodeAddr && noderole.isManager {
 					swarmopt.JoinSwarm(host, managerTK)
-				} else {
-					logger.SugarLogger.Errorln("找到一个没办法确定角色的主机", host.IP, "它未加入这个swarm")
 				}
 			}
 		}
 		// 重建service
 		serviceConfig := config.GetSvcConfig("services.json")
-		if serviceConfig == nil {
-			logger.SugarLogger.Panicln("读取service配置失败")
+		if serviceConfig != nil {
+			swarmopt.RebuildSvc(ctx, dockerClient, serviceConfig)
 		}
-		swarmopt.RebuildSvc(ctx, dockerClient, serviceConfig)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(editdockernetCmd)
+	rebuildSvcCmd.Flags().BoolVar(&isgeoglobe, "isgeoglobe", false, "是否存在geoglobe服务")
 }

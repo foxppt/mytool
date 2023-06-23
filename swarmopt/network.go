@@ -1,11 +1,13 @@
 package swarmopt
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"myTool/config"
 	"myTool/logger"
-	"os"
+	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
@@ -87,84 +89,113 @@ func RebuildIngress(ctx context.Context, dockerClient *client.Client, config *co
 }
 
 // 修改docker配置bip
-func EditBipConf(host config.HostConf, bip string) {
-	if _, err := os.Stat("/etc/docker/daemon.json"); os.IsNotExist(err) {
-		// 配置文件不存在,新建文件
-		file, err := os.Create("/etc/docker/daemon.json")
+func EditBipConf(host config.HostConf, bipStr string) {
+	logger.SugarLogger.Infoln("修改", host.IP, "主机的docker的bip配置: ")
+	var cmd string
+	// 判断文件是否存在
+	cmd = `[ -f /etc/docker/daemon.json ] && echo true || echo false`
+	fileExists, err := execCMD(host.IP, host.Port, host.Username, host.Password, cmd)
+	if err != nil {
+		logger.SugarLogger.Panicln(host.IP, "获取/etc/docker/daemon.json文件状态失败. ")
+	}
+
+	if strings.Contains(fileExists, "false") {
+		// 文件不存在,创建文件
+		logger.SugarLogger.Infoln("/etc/docker/daemon.json不存在, 将被创建. ")
+		cmd = "touch /etc/docker/daemon.json && " + "echo " + `{"bip": ` + bipStr + `} ` + "> /etc/docker/daemon.json"
+		resp, err := execCMD(host.IP, host.Port, host.Username, host.Password, cmd)
 		if err != nil {
-			logger.SugarLogger.DPanicln(err)
-		}
-		defer file.Close()
-		// 添加bip配置
-		_, err = file.WriteString(`{"bip": ` + bip + `}`)
-		if err != nil {
-			logger.SugarLogger.DPanicln(err)
+			logger.SugarLogger.Panicln(host.IP, "重启docker失败", resp)
 		}
 
+		logger.SugarLogger.Infoln("正在重启dockerd, 请等待...")
 		_, err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
 		if err != nil {
 			logger.SugarLogger.Panicln(host.IP, "重启docker失败")
 		}
-	} else {
+		logger.SugarLogger.Infoln("/etc/docker/daemon.json创建成功. ")
+
+	} else if strings.Contains(fileExists, "true") {
 		// 文件存在,解析文件
-		file, err := os.Open("/etc/docker/daemon.json")
+		logger.SugarLogger.Infoln("/etc/docker/daemon.json存在")
+		cmd = "cat /etc/docker/daemon.json"
+		resp, err := execCMD(host.IP, host.Port, host.Username, host.Password, cmd)
 		if err != nil {
-			logger.SugarLogger.DPanicln(err)
+			logger.SugarLogger.Panicln("获取/etc/docker/daemon.json 内容失败")
 		}
-		defer file.Close()
-
-		decoder := json.NewDecoder(file)
-		var dockerConfig map[string]string
-		err = decoder.Decode(&dockerConfig)
+		content := []byte(resp)
+		var config map[string]interface{}
+		err = json.Unmarshal(content, &config)
 		if err != nil {
-			logger.SugarLogger.DPanicln(err)
+			logger.SugarLogger.Panicln(err)
 		}
 
-		// 判断bip配置是否存在
-		_, ok := dockerConfig["bip"]
-		if ok {
-			// bip配置存在,判断值是否为"172.28.1.1/24"
-			if dockerConfig["bip"] != bip {
-				// 值不为"172.28.1.1/24",修改为"172.28.1.1/24"
-				dockerConfig["bip"] = bip
-				output, err := json.MarshalIndent(dockerConfig, "", "    ")
-				if err != nil {
-					logger.SugarLogger.DPanicln(err)
-				}
+		// 判断bip key是否存在
+		_, ok := config["bip"]
+		if !ok {
+			// bip key不存在,追加bip key
+			logger.SugarLogger.Infoln("/etc/docker/daemon.json中bip配置不存在")
+			config["bip"] = bipStr
+			content, err := json.Marshal(config)
+			if err != nil {
+				logger.SugarLogger.Panicln(err)
+			}
 
-				err = os.WriteFile("/etc/docker/daemon.json", output, 0644)
-				if err != nil {
-					logger.SugarLogger.DPanicln(err)
-				}
+			content = bytes.TrimSpace(content)
+			content = bytes.Replace(content, []byte("\n"), []byte("\n    "), -1)
 
+			cmd = fmt.Sprintf("echo '%s' > /etc/docker/daemon.json", string(content))
+			_, err = execCMD(host.IP, host.Port, host.Username, host.Password, cmd)
+			if err != nil {
+				logger.SugarLogger.Panicln(host.IP, "修改/etc/docker/daemon.json失败")
+			}
+
+			logger.SugarLogger.Infoln("正在重启dockerd, 请等待...")
+			_, err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
+			if err != nil {
+				logger.SugarLogger.Panicln(host.IP, "重启docker失败")
+			}
+			logger.SugarLogger.Infoln(`bip配置为"bip:"`, bipStr)
+
+		} else {
+			// bip key存在,判断value
+			logger.SugarLogger.Infoln("/etc/docker/daemon.json中bip配置存在")
+			bip := config["bip"].(string)
+			if bip == bipStr {
+				// value等于172.31.1.1/24,不做任何处理
+				logger.SugarLogger.Infoln("/etc/docker/daemon.json中bip配置与config/config.yml中指定一致. ")
+				logger.SugarLogger.Infoln("正在重启dockerd, 请等待...")
 				_, err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
 				if err != nil {
 					logger.SugarLogger.Panicln(host.IP, "重启docker失败")
 				}
 			} else {
+				// value不等于172.31.1.1/24,修改value
+				logger.SugarLogger.Infoln("/etc/docker/daemon.json中bip配置与config/config.yml中指定不一致. ")
+				config["bip"] = bipStr
+				content, err := json.Marshal(config)
+				if err != nil {
+					logger.SugarLogger.Panicln(err)
+				}
+				content = bytes.TrimSpace(content)
+				content = bytes.Replace(content, []byte("\n"), []byte("\n    "), -1)
+
+				cmd = fmt.Sprintf("echo '%s' > /etc/docker/daemon.json", string(content))
+				_, err = execCMD(host.IP, host.Port, host.Username, host.Password, cmd)
+				if err != nil {
+					logger.SugarLogger.Panicln(host.IP, "修改/etc/docker/daemon.json失败")
+				}
+
+				logger.SugarLogger.Infoln("正在重启dockerd, 请等待...")
 				_, err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
 				if err != nil {
 					logger.SugarLogger.Panicln(host.IP, "重启docker失败")
 				}
-			}
-		} else {
-			// 若bip的配置不存在,追加"bip": "172.28.1.1/24"
-			dockerConfig["bip"] = bip
-			output, err := json.MarshalIndent(dockerConfig, "", "    ")
-			if err != nil {
-				logger.SugarLogger.DPanicln(err)
-			}
-			err = os.WriteFile("/etc/docker/daemon.json", output, 0644)
-			if err != nil {
-				logger.SugarLogger.DPanicln(err)
-			}
-
-			_, err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
-			if err != nil {
-				logger.SugarLogger.Panicln(host.IP, "重启docker失败")
+				logger.SugarLogger.Infoln("/etc/docker/daemon.json中bip配置已被修改. ")
 			}
 		}
 	}
+
 }
 
 // 删除docker_gwbridge

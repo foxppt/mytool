@@ -42,10 +42,12 @@ func JoinSwarm(host config.HostConf, joinToken string) error {
 	// 判断如果是本机就continue跳过, 因为本机不能加入第二次
 	resp, err := execCMD(host.IP, host.Port, host.Username, host.Password, "docker node ls")
 	if err != nil {
-		logger.SugarLogger.Panicln(err)
+		if strings.Contains(resp, "This node is not a swarm manager") {
+			logger.SugarLogger.Infoln(host.IP, "将尝试加入集群")
+		}
 	}
 	if strings.Contains(resp, "Active") && strings.Contains(resp, "Leader") {
-		err = errors.New("这个节点是当前主节点, 已经跳过")
+		err := errors.New("这个节点是当前主节点, 已经跳过")
 		return err
 	}
 	_, err = execCMD(host.IP, host.Port, host.Username, host.Password, joinToken)
@@ -57,18 +59,16 @@ func JoinSwarm(host config.HostConf, joinToken string) error {
 }
 
 // GetSwarmLeader 获取Swarm节点角色
-func GetSwarmNodeRole(ctx context.Context, dockerClient *client.Client, nodeAddr string) (bool, error) {
-	nodeList, err := dockerClient.NodeList(ctx, types.NodeListOptions{})
-	if err != nil {
-		logger.SugarLogger.Panicln(err)
+func GetSwarmNodeRole(ctx context.Context, dockerClient *client.Client, host config.HostConf) (bool, error) {
+	cmd := "docker node ls"
+	resp, err := execCMD(host.IP, host.Port, host.Username, host.Password, cmd)
+	if strings.Contains(resp, "This node is not a swarm manager") {
+		return false, nil
+	} else if strings.Contains(resp, "Active") && strings.Contains(resp, "Leader") {
+		return true, nil
+	} else {
+		return false, err
 	}
-	for _, node := range nodeList {
-		if node.Status.Addr == nodeAddr {
-			return node.ManagerStatus.Leader, nil
-		}
-	}
-	err = errors.New("节点信息中没有匹配到" + nodeAddr + "这个IP的相关信息. ")
-	return false, err
 }
 
 // GetSwarmJoinTK 获取swarm join-token
@@ -77,5 +77,10 @@ func GetSwarmJoinTK(ctx context.Context, dockerClient *client.Client) (joinToken
 	if err != nil {
 		return "", "", err
 	}
-	return swarm.JoinTokens.Manager, swarm.JoinTokens.Worker, nil
+
+	nodeList, err := dockerClient.NodeList(ctx, types.NodeListOptions{})
+	if err != nil {
+		return "", "", err
+	}
+	return "docker swarm join --token " + swarm.JoinTokens.Manager + " " + nodeList[0].ManagerStatus.Addr, "docker swarm join --token " + swarm.JoinTokens.Worker + " " + nodeList[0].ManagerStatus.Addr, nil
 }
