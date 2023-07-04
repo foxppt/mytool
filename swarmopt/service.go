@@ -306,6 +306,32 @@ func ChangeSvcNode(ctx context.Context, dockerClient *client.Client, dbs *Databa
 		logger.SugarLogger.Errorln("查询到的服务地址存在问题", url)
 	}
 
+	var dbServiceID string
+	var dbRecordID string
+	sqlStrGeoGlobeQuery = `SELECT
+					info1.ID,info1.PARAMVALUE 
+				FROM
+					GGS_SR_SERVICEINFO AS info1
+					JOIN GGS_SR_SERVICEINFO AS info2 ON info1.PARENTID = info2.ID
+					JOIN GGS_SR_SERVICEINFO AS info3 ON info2.PARENTID = info3.PARENTID 
+				WHERE
+					info3.PARAMKEY = 'name' 
+					AND info3.PARAMVALUE = ?
+					AND info2.PARAMKEY = 'settings' 
+					AND info1.PARAMKEY = 'DOCKERID'`
+
+	rows, err = dbs.Query("Globe", sqlStrGeoGlobeQuery, serviceName)
+	if err != nil {
+		logger.SugarLogger.Errorln(err)
+	}
+	for rows.Next() {
+		// 事实上只会有一条
+		err = rows.Scan(&dbRecordID, &dbServiceID)
+		if err != nil {
+			logger.SugarLogger.Errorln(err)
+		}
+	}
+
 	for _, svc := range serviceList {
 		if svc.Spec.Name == serviceName {
 			for _, node := range nodeList {
@@ -317,7 +343,7 @@ func ChangeSvcNode(ctx context.Context, dockerClient *client.Client, dbs *Databa
 					sqlStrServiceProxy := `update proxy_cluster set physical_address = replace(physical_address, ?, ?) where physical_address = ?`
 					sqlStrGeoGlobeExec := `update ggs_sr_serviceinfo set paramvalue = replace(paramvalue, ?, ?) where paramvalue = ?`
 
-					logger.SugarLogger.Infoln("数据库记录服务地址: ", url, "将被替换成: ", newUrl)
+					logger.SugarLogger.Infoln("数据库记录服务地址: ", url, "将被更新成: ", newUrl)
 					res, err := dbs.ServiceCenter.Exec(sqlStrServiceCenter, url, newUrl, url+"/")
 					if err != nil {
 						logger.SugarLogger.Errorln(err)
@@ -337,6 +363,15 @@ func ChangeSvcNode(ctx context.Context, dockerClient *client.Client, dbs *Databa
 						logger.SugarLogger.Errorln(err)
 					}
 					rows, _ = res.RowsAffected()
+					logger.SugarLogger.Infof("update ggs_sr_serviceinfo , %d rows affected. ", rows)
+
+					sqlStrGeoGlobeExec = `update ggs_sr_serviceinfo set paramvalue = ? where id = ?`
+					res, err = dbs.Globe.Exec(sqlStrGeoGlobeExec, svc.ID, dbRecordID)
+					if err != nil {
+						logger.SugarLogger.Errorln(err)
+					}
+					rows, _ = res.RowsAffected()
+					logger.SugarLogger.Infoln("数据库记录服务ID: ", dbServiceID, "被更新成: ", svc.ID)
 					logger.SugarLogger.Infof("update ggs_sr_serviceinfo , %d rows affected. ", rows)
 					return nil
 				}
