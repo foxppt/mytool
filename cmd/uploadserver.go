@@ -17,7 +17,7 @@ var uploadserverCmd = &cobra.Command{
   启动一个提供上传功能的http服务: 
   本命令存在一个参数 -p 允许用户指定端口, 格式为-p port`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("uploadserver called")
+		fmt.Println("空函数, 还没来得及写. ")
 	},
 }
 

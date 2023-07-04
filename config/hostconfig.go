@@ -11,38 +11,28 @@ var HostConfig *Config
 
 // initConfig 初始化配置文件
 func initConfig() {
-	confStr := `# 集群主机连接信息
-host:
-  - ip: 示例节点1-IP
-    port: 节点SSH端口
-    username: 节点SSH用户名
-    password: 节点SSH密码
-  - ip: 示例节点2-IP
-    port: 节点SSH端口
-    username: 节点SSH用户名
-    password: 节点SSH密码
-  # 如果有多个节点可以继续添加, 相反, 如果只有一个节点, 删除第二节(示例节点2)
+	var examHost Config
+	examHost.Host = make([]HostConf, 3)
+	examHost.Host[0] = HostConf{
+		IP:       "示例节点1-IP",
+		Port:     22,
+		Username: "节点SSH用户名",
+		Password: "节点SSH密码",
+	}
+	examHost.Host[1] = examHost.Host[0]
+	examHost.Host[1].IP = "示例节点2-IP"
+	examHost.Host[2] = examHost.Host[0]
+	examHost.Host[2].IP = "示例节点3-IP"
+	examHost.Ingress.Subnet = "172.29.0.1/20"
+	examHost.Ingress.Gateway = "172.29.0.254"
+	examHost.Gwbridge.Subnet = "172.30.0.1/24"
+	examHost.Gwbridge.Gateway = "172.30.0.254"
+	examHost.BIP = "172.31.0.1/24"
 
-# Ingress CIDR定义
-ingress:
-  subnet: 172.29.0.1/20 # Ingress网络CIDR定义, 可以自行修改
-  gateway: 172.29.0.254 # Ingress网络网关
-
-# docker_gwbridge CIDR定义
-docker_gwbridge:
-  subnet: 172.30.0.1/24 # docker_gwbridge网络CIDR定义, 可以自行修改
-  gateway: 172.30.0.254 # docker_gwbridge网络网关
-
-# dockerd bip网段(也就是docker0这个网卡的网段)
-bip: 172.31.0.1/24
-
-# 数据库连接信息
-mysql:
-  host: 数据库ip
-  port: 数据库端口
-  dbname: 数据库库名
-  user: 数据库用户名
-  passwd: 数据库密码`
+	confStr, err := yaml.Marshal(examHost)
+	if err != nil {
+		panic(err)
+	}
 
 	f, err := os.Create("config/config.yml")
 	if err != nil {

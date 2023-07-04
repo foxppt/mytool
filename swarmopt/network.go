@@ -7,89 +7,16 @@ import (
 	"fmt"
 	"myTool/config"
 	"myTool/logger"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 )
 
-// DelIngress 删除Ingress网络
-func DelIngress(ctx context.Context, dockerClient *client.Client, config *config.Config) {
-	networks, err := dockerClient.NetworkList(ctx, types.NetworkListOptions{})
-	if err != nil {
-		panic(err)
-	}
-	for _, network := range networks {
-		if network.Name == "ingress" {
-			logger.SugarLogger.Infoln("ingress 网络存在 ")
-			err = dockerClient.NetworkRemove(ctx, "ingress")
-			if err != nil {
-				panic(err)
-			}
-			logger.SugarLogger.Infoln("ingress 已经被移除 ")
-		}
-	}
-	logger.SugarLogger.Infoln("正在重启dockerd, 请等待...")
-	cmd := "systemctl restart docker"
-	for _, host := range config.Host {
-		_, err = execCMD(host.IP, host.Port, host.Username, host.Password, cmd)
-		if err != nil {
-			logger.SugarLogger.Panicln(host.IP, "重启dockerd失败:", err)
-		}
-		logger.SugarLogger.Infoln(host.IP, "重启dockerd成功. ")
-	}
-}
-
-// RebuildIngress 根据配置文件重建Ingress网络
-func RebuildIngress(ctx context.Context, dockerClient *client.Client, config *config.Config) {
-	// 创建一个overlay网络，名为ingress，subnet为10.0.0.1/20
-	networkName := "ingress"
-	ipaconfig := network.IPAMConfig{
-		Subnet:  config.Ingress.Subnet,
-		Gateway: config.Ingress.Gateway,
-	}
-	networkcrt := types.NetworkCreate{
-		Driver:     "overlay",
-		Scope:      "swarm",
-		EnableIPv6: false,
-		IPAM: &network.IPAM{
-			Driver: "default",
-			Config: []network.IPAMConfig{
-				ipaconfig,
-			},
-		},
-		Internal:   false,
-		Attachable: false,
-		Ingress:    true,
-		ConfigOnly: false,
-		ConfigFrom: &network.ConfigReference{
-			Network: "",
-		},
-		Options: map[string]string{
-			"com.docker.network.driver.overlay.vxlanid_list": "4098",
-			"com.docker.network.mtu":                         "1400",
-		},
-		Labels: map[string]string{},
-	}
-	resp, err := dockerClient.NetworkCreate(ctx, networkName, networkcrt)
-	if err != nil {
-		panic(err)
-	}
-	logger.SugarLogger.Infof("Ingress网络%s创建成功 ", resp.ID)
-	logger.SugarLogger.Infoln("正在重启dockerd, 请等待...")
-	cmd := "systemctl restart docker"
-	for _, host := range config.Host {
-		_, err = execCMD(host.IP, host.Port, host.Username, host.Password, cmd)
-		if err != nil {
-			logger.SugarLogger.Panicln(host.IP, "重启dockerd失败:", err)
-		}
-		logger.SugarLogger.Infoln(host.IP, "重启dockerd成功. ")
-	}
-}
-
 // 修改docker配置bip
-func EditBipConf(host config.HostConf, bipStr string) {
+func EditBipConf(host config.HostConf, bipStr string, needRestartDocker bool) {
 	logger.SugarLogger.Infoln("修改", host.IP, "主机的docker的bip配置: ")
 	var cmd string
 	// 判断文件是否存在
@@ -110,12 +37,13 @@ func EditBipConf(host config.HostConf, bipStr string) {
 		}
 		logger.SugarLogger.Infoln("/etc/docker/daemon.json创建成功, bip被设置为: ", bipStr)
 
-		logger.SugarLogger.Infoln("正在重启dockerd, 请等待...")
-		_, err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
-		if err != nil {
-			logger.SugarLogger.Panicln(host.IP, "重启docker失败")
+		if needRestartDocker {
+			logger.SugarLogger.Infoln("正在重启dockerd, 请等待...")
+			_, err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
+			if err != nil {
+				logger.SugarLogger.Panicln(host.IP, "重启docker失败")
+			}
 		}
-
 	} else if strings.Contains(fileExists, "true") {
 		// 文件存在,解析文件
 		logger.SugarLogger.Infoln("/etc/docker/daemon.json存在")
@@ -132,13 +60,14 @@ func EditBipConf(host config.HostConf, bipStr string) {
 				logger.SugarLogger.Panicln(host.IP, "重启docker失败", resp)
 			}
 			logger.SugarLogger.Infoln("bip被设置为: ", bipStr)
-
-			logger.SugarLogger.Infoln("正在重启dockerd, 请等待...")
-			_, err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
-			if err != nil {
-				logger.SugarLogger.Panicln(host.IP, "重启docker失败")
+			if needRestartDocker {
+				logger.SugarLogger.Infoln("正在重启dockerd, 请等待...")
+				_, err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
+				if err != nil {
+					logger.SugarLogger.Panicln(host.IP, "重启docker失败")
+				}
+				return
 			}
-			return
 		}
 		content := []byte(resp)
 		var config map[string]interface{}
@@ -167,10 +96,12 @@ func EditBipConf(host config.HostConf, bipStr string) {
 				logger.SugarLogger.Panicln(host.IP, "修改/etc/docker/daemon.json失败")
 			}
 
-			logger.SugarLogger.Infoln("正在重启dockerd, 请等待...")
-			_, err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
-			if err != nil {
-				logger.SugarLogger.Panicln(host.IP, "重启docker失败")
+			if needRestartDocker {
+				logger.SugarLogger.Infoln("正在重启dockerd, 请等待...")
+				_, err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
+				if err != nil {
+					logger.SugarLogger.Panicln(host.IP, "重启docker失败")
+				}
 			}
 			logger.SugarLogger.Infoln(`bip配置为"bip:"`, bipStr)
 
@@ -203,10 +134,12 @@ func EditBipConf(host config.HostConf, bipStr string) {
 					logger.SugarLogger.Panicln(host.IP, "修改/etc/docker/daemon.json失败")
 				}
 
-				logger.SugarLogger.Infoln("正在重启dockerd, 请等待...")
-				_, err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
-				if err != nil {
-					logger.SugarLogger.Panicln(host.IP, "重启docker失败")
+				if needRestartDocker {
+					logger.SugarLogger.Infoln("正在重启dockerd, 请等待...")
+					_, err = execCMD(host.IP, host.Port, host.Username, host.Password, "systemctl restart docker")
+					if err != nil {
+						logger.SugarLogger.Panicln(host.IP, "重启docker失败")
+					}
 				}
 				logger.SugarLogger.Infoln("/etc/docker/daemon.json中bip配置已被修改, 现在为: ", bipStr)
 			}
@@ -215,60 +148,94 @@ func EditBipConf(host config.HostConf, bipStr string) {
 
 }
 
-// 删除docker_gwbridge
-func Delgwbr(ctx context.Context, dockerClient *client.Client, config *config.Config) {
+// 删除网络
+func DelNetwork(ctx context.Context, dockerClient *client.Client, config *config.Config, netName string, needRestartDocker bool) {
 	networks, err := dockerClient.NetworkList(ctx, types.NetworkListOptions{})
 	if err != nil {
 		panic(err)
 	}
+
 	for _, network := range networks {
-		if network.Name == "docker_gwbridge" {
-			logger.SugarLogger.Infoln("docker_gwbridge 网络存在 ")
-			err = dockerClient.NetworkRemove(ctx, "docker_gwbridge")
+		if network.Name == netName {
+			logger.SugarLogger.Infoln(netName, "网络存在 ")
+			err = dockerClient.NetworkRemove(ctx, netName)
 			if err != nil {
 				panic(err)
 			}
-			logger.SugarLogger.Infoln("docker_gwbridge 已经被移除 ")
+			logger.SugarLogger.Infoln(netName, "已经被移除 ")
 		}
 	}
-	logger.SugarLogger.Infoln("正在重启dockerd, 请等待...")
+	if needRestartDocker {
+		logger.SugarLogger.Infoln("正在重启dockerd, 请等待...")
+		cmd := "systemctl restart docker"
+		for _, host := range config.Host {
+			_, err = execCMD(host.IP, host.Port, host.Username, host.Password, cmd)
+			if err != nil {
+				logger.SugarLogger.Panicln(host.IP, "重启dockerd失败:", err)
+			}
+			logger.SugarLogger.Infoln(host.IP, "重启dockerd成功. ")
+		}
+	}
 }
 
-// 重新创建docker_gwbridge
-func Rebuildgwbr(ctx context.Context, dockerClient *client.Client, config *config.Config) {
-	// 创建一个overlay网络，名为ingress，subnet为10.0.0.1/20
-	networkName := "docker_gwbridge"
-	ipaconfig := network.IPAMConfig{
-		Subnet:  config.Gwbridge.Subnet,
-		Gateway: config.Gwbridge.Gateway,
-	}
-	networkcrt := types.NetworkCreate{
-		Driver:     "bridge",
-		Scope:      "local",
-		EnableIPv6: false,
-		IPAM: &network.IPAM{
-			Driver: "default",
-			Config: []network.IPAMConfig{
-				ipaconfig,
-			},
-		},
-		Internal:   false,
-		Attachable: false,
-		Ingress:    false,
-		ConfigOnly: false,
-		ConfigFrom: &network.ConfigReference{
-			Network: "",
-		},
-		Options: map[string]string{
-			"com.docker.network.bridge.enable_icc":           "false",
-			"com.docker.network.bridge.enable_ip_masquerade": "true",
-			"com.docker.network.bridge.name":                 "docker_gwbridge",
-		},
-		Labels: map[string]string{},
-	}
-	resp, err := dockerClient.NetworkCreate(ctx, networkName, networkcrt)
+// 创建网络
+func BuildNetwork(ctx context.Context, dockerClient *client.Client, config *config.Config, netName string, netConf types.NetworkCreate, needRestartDocker bool) {
+	resp, err := dockerClient.NetworkCreate(ctx, netName, netConf)
 	if err != nil {
 		panic(err)
 	}
-	logger.SugarLogger.Infoln("docker_gwbridge网络", resp.ID, "创建成功, subnet: ", config.Gwbridge.Subnet)
+	logger.SugarLogger.Infof("%s网络%s创建成功 ", netName, resp.ID)
+	if needRestartDocker {
+		logger.SugarLogger.Infoln("正在重启dockerd, 请等待...")
+		cmd := "systemctl restart docker"
+		for _, host := range config.Host {
+			_, err = execCMD(host.IP, host.Port, host.Username, host.Password, cmd)
+			if err != nil {
+				logger.SugarLogger.Panicln(host.IP, "重启dockerd失败:", err)
+			}
+			logger.SugarLogger.Infoln(host.IP, "重启dockerd成功. ")
+		}
+	}
+}
+
+// 记录自定义网络相关的信息
+func RecordNet(ctx context.Context, dockerClient *client.Client, netConf string) {
+	netStruct := []types.NetworkResource{}
+	networks, err := dockerClient.NetworkList(ctx, types.NetworkListOptions{})
+	if err != nil {
+		logger.SugarLogger.Panicln(err)
+	}
+	for _, net := range networks {
+		if net.Name != "bridge" && net.Name != "docker_gwbridge" && net.Name != "host" && net.Name != "ingress" && net.Name != "none" {
+			netStruct = append(netStruct, net)
+		}
+	}
+	// 将 svcStructs 编码为JSON并将其写入services.json
+	jsonBytes, err := json.MarshalIndent(netStruct, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	// 判断services.json是否存在，如果存在就备份，备份文件名为services.json_时间戳
+	timestamp := time.Now().Unix()
+	if _, err := os.Stat(netConf); !os.IsNotExist(err) {
+		// 备份文件名为services.json_时间戳
+		logger.SugarLogger.Infoln(netConf, "已经存在")
+		err := os.Rename(netConf, fmt.Sprintf(netConf+"_%d", timestamp))
+		if err != nil {
+			logger.SugarLogger.Errorln(netConf, "备份文件失败：", err)
+			return
+		}
+		logger.SugarLogger.Infoln(netConf, "备份, 文件名为: ", fmt.Sprintf(netConf+"_%d", timestamp))
+	}
+
+	f, err := os.Create(netConf)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	_, err = f.Write(jsonBytes)
+	if err != nil {
+		panic(err)
+	}
+	logger.SugarLogger.Infoln("自定义网络详细信息已被保存到", netConf)
 }

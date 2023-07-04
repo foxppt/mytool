@@ -25,7 +25,7 @@ var unconstraintSvcCmd = &cobra.Command{
 		if err != nil {
 			panic(err)
 		}
-		swarmopt.UnConstraitService(ctx, dockerClient)
+		swarmopt.UnConstraitAll(ctx, dockerClient)
 	},
 }
 

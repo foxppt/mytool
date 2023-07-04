@@ -32,11 +32,11 @@ var rebuildSvcCmd = &cobra.Command{
 		if serviceConfig == nil {
 			logger.SugarLogger.Panicln("读取service配置失败")
 		}
-		swarmopt.RebuildGlobeSvc(ctx, dockerClient, serviceConfig)
+		swarmopt.RebuildSvc(ctx, dockerClient, serviceConfig)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(rebuildSvcCmd)
-	rebuildSvcCmd.Flags().StringVar(&svcConfPath, "config", "services.json", "加载服务配置文件")
+	rebuildSvcCmd.Flags().StringVarP(&svcConfPath, "config", "c", "services.json", "加载服务配置文件")
 }

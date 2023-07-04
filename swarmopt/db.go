@@ -2,34 +2,21 @@ package swarmopt
 
 import (
 	"database/sql"
+	"errors"
 	"myTool/config"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
-func getSvcUriFromMySQL(db *sql.DB, name string) (string, error) {
-	var svcUri string
-	sqlStr := `SELECT
-	             info1.PARAMVALUE 
-               FROM
-	             GGS_SR_SERVICEINFO AS info1
-	             JOIN GGS_SR_SERVICEINFO AS info2 ON info1.PARENTID = info2.ID
-	             JOIN GGS_SR_SERVICEINFO AS info3 ON info2.PARENTID = info3.PARENTID 
-               WHERE
-	             info3.PARAMKEY = 'name' 
-	             AND info3.PARAMVALUE = ? 
-	             AND info2.PARAMKEY = 'settings' 
-	             AND info1.PARAMKEY = 'DOCKERSERVICEURL'`
-	err := db.QueryRow(sqlStr, name).Scan(&svcUri)
-	if err != nil {
-		return "", err
-	}
-	return svcUri, nil
+type Databases struct {
+	Globe         *sql.DB
+	ServiceCenter *sql.DB
+	ServiceProxy  *sql.DB
 }
 
 // 初始化数据库
-func InitDB(config *config.Config) (db *sql.DB, err error) {
-	dsn := config.Mysql.User + ":" + config.Mysql.Passwd + "@tcp(" + config.Mysql.Host + ":" + config.Mysql.Port + ")" + "/" + config.Mysql.DBName
+func (dbs *Databases) InitDB(dbConfig *config.Mysql) (db *sql.DB, err error) {
+	dsn := dbConfig.User + ":" + dbConfig.Passwd + "@tcp(" + dbConfig.Host + ":" + dbConfig.Port + ")" + "/" + dbConfig.DBName
 	db, err = sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, err
@@ -39,4 +26,53 @@ func InitDB(config *config.Config) (db *sql.DB, err error) {
 		return nil, err
 	}
 	return db, nil
+}
+
+// 公有sql Exec执行类
+func (dbs *Databases) Exec(db string, query string, args ...interface{}) (sql.Result, error) {
+	switch db {
+	case "Globe":
+		res, err := dbs.Globe.Exec(query, args...)
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
+	case "ServiceCenter":
+		res, err := dbs.ServiceCenter.Exec(query, args...)
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
+	case "ServiceProxy":
+		res, err := dbs.ServiceProxy.Exec(query, args...)
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
+	}
+	return nil, errors.New("数据库查询方法未实现")
+}
+
+func (dbs *Databases) Query(db string, query string, args ...interface{}) (*sql.Rows, error) {
+	switch db {
+	case "Globe":
+		rows, err := dbs.Globe.Query(query, args...)
+		if err != nil {
+			return nil, err
+		}
+		return rows, nil
+	case "ServiceCenter":
+		rows, err := dbs.ServiceCenter.Query(query, args...)
+		if err != nil {
+			return nil, err
+		}
+		return rows, nil
+	case "ServiceProxy":
+		rows, err := dbs.ServiceProxy.Query(query, args...)
+		if err != nil {
+			return nil, err
+		}
+		return rows, nil
+	}
+	return nil, errors.New("数据库查询方法未实现")
 }

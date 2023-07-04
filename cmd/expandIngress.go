@@ -10,6 +10,8 @@ import (
 	"myTool/swarmopt"
 	"os"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/spf13/cobra"
 )
@@ -20,37 +22,8 @@ var expandIngressCmd = &cobra.Command{
 	Short: "扩展GeoGlobe Server Swarm 的 Ingress网络",
 	Long: `expandIngress: 
   扩展GeoGlobe Server Swarm 的 Ingress网络: 
-  第一次运行时程序会在当前目录初始化一个config/config.yml文件, 
-  用户需完善相关配置才能再次运行. 
-  yaml配置文件格式: 
-  # 集群主机连接信息
-  host:
-    - ip: 示例节点1-IP
-      port: 节点SSH端口
-      username: 节点SSH用户名
-      password: 节点SSH密码
-    - ip: 示例节点2-IP
-      port:节点SSH端口
-      username: 节点SSH用户名
-      password: 节点SSH密码
-    # 如果有多个节点可以继续添加, 相反, 如果只有一个节点, 删除第二个节(示例节点2)
-  # Ingress CIDR定义
-  ingress:
-    subnet: 172.29.0.1/20 # Ingress网络CIDR定义, 可以自行修改
-    gateway: 172.29.0.254 # Ingress网络网关
-  # docker_gwbridge CIDR定义
-  docker_gwbridge:
-	subnet: 172.30.0.1/24 # docker_gwbridge网络CIDR定义, 可以自行修改
-	gateway: 172.30.0.254 # docker_gwbridge网络网关
-  # dockerd bip网段(也就是docker0这个网卡的网段)
-  bip: 172.31.0.1/24 # docker0网卡的网段, 根据实际情况修改
-  # 数据库连接信息
-  mysql:
-    host: 数据库ip
-    port: 数据库端口
-    dbname: 数据库库名
-    user: 数据库用户名
-    passwd: 数据库密码`,
+  第一次运行时程序会在当前目录初始化一个config/config.yml和config/db.yml文件, 
+  用户需完善相关配置才能再次运行. `,
 	Run: func(cmd *cobra.Command, args []string) {
 		var ctx = context.Background()
 		dockerClient, err := client.NewClientWithOpts(client.WithAPIVersionNegotiation(), client.WithVersion(""))
@@ -65,15 +38,49 @@ var expandIngressCmd = &cobra.Command{
 		if hostConfig == nil {
 			os.Exit(0)
 		}
-		db, err := swarmopt.InitDB(hostConfig)
-		if err != nil {
-			logger.SugarLogger.Fatalln(err)
+		dbConf := config.GetDBConfig(true)
+		if dbConf == nil {
+			os.Exit(0)
 		}
-		swarmopt.RecordGlobeSvc(ctx, dockerClient, hostConfig, db, "services.json")
+		var dbs *swarmopt.Databases
+		dbs.Globe, err = dbs.InitDB(&dbConf.Globe)
+		if err != nil {
+			logger.SugarLogger.Panicln(err)
+		}
+
+		ipaconfig := network.IPAMConfig{
+			Subnet:  hostConfig.Gwbridge.Subnet,
+			Gateway: hostConfig.Gwbridge.Gateway,
+		}
+		netConf := types.NetworkCreate{
+			Driver:     "overlay",
+			Scope:      "swarm",
+			EnableIPv6: false,
+			IPAM: &network.IPAM{
+				Driver: "default",
+				Config: []network.IPAMConfig{
+					ipaconfig,
+				},
+			},
+			Internal:   false,
+			Attachable: false,
+			Ingress:    true,
+			ConfigOnly: false,
+			ConfigFrom: &network.ConfigReference{
+				Network: "",
+			},
+			Options: map[string]string{
+				"com.docker.network.driver.overlay.vxlanid_list": "4098",
+				"com.docker.network.mtu":                         "1400",
+			},
+			Labels: map[string]string{},
+		}
+
+		swarmopt.RecordSvc(ctx, dockerClient, hostConfig, true, dbs, "services.json")
 		swarmopt.DelService(ctx, dockerClient)
-		swarmopt.DelIngress(ctx, dockerClient, hostConfig)
-		swarmopt.RebuildIngress(ctx, dockerClient, hostConfig)
-		swarmopt.RebuildGlobeSvc(ctx, dockerClient, serviceConfig)
+		swarmopt.DelNetwork(ctx, dockerClient, hostConfig, "ingress", true)
+		swarmopt.BuildNetwork(ctx, dockerClient, hostConfig, "ingress", netConf, false)
+		swarmopt.RebuildSvc(ctx, dockerClient, serviceConfig)
 	},
 }
 

@@ -15,6 +15,7 @@ import (
 )
 
 var svcConf string
+var isGlobe string
 
 // recordeSvcCmd represents the recodeSvc command
 var recordeSvcCmd = &cobra.Command{
@@ -30,19 +31,35 @@ var recordeSvcCmd = &cobra.Command{
 		if err != nil {
 			panic(err)
 		}
-		hostConfig := config.GetHostConfig()
-		if hostConfig == nil {
-			os.Exit(0)
+
+		if isGlobe == "true" {
+			hostConfig := config.GetHostConfig()
+			if hostConfig == nil {
+				os.Exit(0)
+			}
+
+			dbConf := config.GetDBConfig(true)
+			if dbConf == nil {
+				os.Exit(0)
+			}
+			dbs := &swarmopt.Databases{}
+			dbs.Globe, err = dbs.InitDB(&dbConf.Globe)
+			if err != nil {
+				logger.SugarLogger.Panicln(err)
+			}
+			swarmopt.RecordSvc(ctx, dockerClient, hostConfig, true, dbs, svcConf)
+		} else {
+			hostConfig := config.GetHostConfig()
+			if hostConfig == nil {
+				os.Exit(0)
+			}
+			swarmopt.RecordSvc(ctx, dockerClient, hostConfig, false, nil, svcConf)
 		}
-		db, err := swarmopt.InitDB(hostConfig)
-		if err != nil {
-			logger.SugarLogger.Fatalln(err)
-		}
-		swarmopt.RecordGlobeSvc(ctx, dockerClient, hostConfig, db, svcConf)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(recordeSvcCmd)
-	recordeSvcCmd.Flags().StringVar(&svcConf, "config", "services.json", "服务配置文件存储路径")
+	recordeSvcCmd.Flags().StringVarP(&svcConf, "config", "c", "services.json", "服务配置文件存储路径")
+	recordeSvcCmd.Flags().StringVarP(&isGlobe, "isgeoglobe", "g", "", "是否存在geoglobe服务")
 }

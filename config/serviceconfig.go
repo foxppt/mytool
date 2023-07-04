@@ -8,8 +8,8 @@ import (
 
 var serviceConfig *[]ServiceConfig
 
-func GetSvcConfig(configpath string) *[]ServiceConfig {
-	data, err := os.ReadFile(configpath)
+func GetSvcConfig(configPath string) *[]ServiceConfig {
+	data, err := os.ReadFile(configPath)
 	if err != nil {
 		logger.SugarLogger.Errorln(err)
 		os.Exit(1)
@@ -20,7 +20,7 @@ func GetSvcConfig(configpath string) *[]ServiceConfig {
 	}
 
 	if serviceConfig == nil {
-		logger.SugarLogger.Warnln("未在", configpath, "中解析到服务配置, 程序将退出 ")
+		logger.SugarLogger.Warnln("未在", configPath, "中解析到服务配置, 程序将退出 ")
 		return nil
 	}
 	return serviceConfig
