@@ -30,10 +30,7 @@ var expandIngressCmd = &cobra.Command{
 		if err != nil {
 			panic(err)
 		}
-		serviceConfig := config.GetSvcConfig("services.json")
-		if serviceConfig == nil {
-			logger.SugarLogger.Panicln("读取service配置失败")
-		}
+
 		hostConfig := config.GetHostConfig()
 		if hostConfig == nil {
 			os.Exit(0)
@@ -49,8 +46,8 @@ var expandIngressCmd = &cobra.Command{
 		}
 
 		ipaconfig := network.IPAMConfig{
-			Subnet:  hostConfig.Gwbridge.Subnet,
-			Gateway: hostConfig.Gwbridge.Gateway,
+			Subnet:  hostConfig.Ingress.Subnet,
+			Gateway: hostConfig.Ingress.Gateway,
 		}
 		netConf := types.NetworkCreate{
 			Driver:     "overlay",
@@ -80,6 +77,11 @@ var expandIngressCmd = &cobra.Command{
 		swarmopt.DelService(ctx, dockerClient)
 		swarmopt.DelNetwork(ctx, dockerClient, hostConfig, "ingress", true)
 		swarmopt.BuildNetwork(ctx, dockerClient, hostConfig, "ingress", netConf, false)
+
+		serviceConfig := config.GetSvcConfig("services.json")
+		if serviceConfig == nil {
+			logger.SugarLogger.Panicln("读取service配置失败")
+		}
 		swarmopt.RebuildSvc(ctx, dockerClient, serviceConfig)
 	},
 }

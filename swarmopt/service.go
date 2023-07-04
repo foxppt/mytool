@@ -35,6 +35,7 @@ func RecordSvc(ctx context.Context, dockerClient *client.Client, hostConfig *con
 	if err != nil {
 		logger.SugarLogger.Fatalln(err)
 	}
+
 	ipRegex := regexp.MustCompile(`\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}`)
 	// 遍历服务并将相应的信息附加到 svcStructs
 	for _, service := range serviceList {
@@ -90,8 +91,10 @@ func RecordSvc(ctx context.Context, dockerClient *client.Client, hostConfig *con
 		svcStruct.RawSvcID = service.ID
 		svcStruct.Labels = service.Spec.Labels
 		svcStruct.Image = service.Spec.TaskTemplate.ContainerSpec.Image
-		svcStruct.TargetPort = service.Endpoint.Ports[0].TargetPort
-		svcStruct.PublishPort = service.Endpoint.Ports[0].PublishedPort
+		if len(service.Endpoint.Ports) > 0 {
+			svcStruct.TargetPort = service.Endpoint.Ports[0].TargetPort
+			svcStruct.PublishPort = service.Endpoint.Ports[0].PublishedPort
+		}
 		svcStruct.Env = service.Spec.TaskTemplate.ContainerSpec.Env
 		svcStruct.Replicas = *service.Spec.Mode.Replicated.Replicas
 		if len(service.Endpoint.VirtualIPs) > 0 {
