@@ -17,6 +17,7 @@ import (
 )
 
 var isGeoglobe string
+var advertiseAddr string
 
 // editDockerNetCmd represents the editdockernet command
 var editDockerNetCmd = &cobra.Command{
@@ -56,6 +57,9 @@ var editDockerNetCmd = &cobra.Command{
 			swarmopt.RecordSvc(ctx, dockerClient, hostConfig, true, dbs, "services.json")
 		} else if isGeoglobe == "false" {
 			swarmopt.RecordSvc(ctx, dockerClient, hostConfig, false, nil, "services.json")
+		} else {
+			logger.SugarLogger.Infoln("请指定swarm中service是否为geoglobe的服务. ")
+			os.Exit(0)
 		}
 
 		ipaconfig := network.IPAMConfig{
@@ -109,7 +113,7 @@ var editDockerNetCmd = &cobra.Command{
 		}
 
 		// 主节点创建swarm
-		swarmopt.InitSwarm(ctx, dockerClient, ":2377")
+		swarmopt.InitSwarm(ctx, dockerClient, "advertiseAddr")
 
 		// 获取join token
 		managerTK, workerTK, err := swarmopt.GetSwarmJoinTK(ctx, dockerClient)
@@ -158,5 +162,6 @@ var editDockerNetCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(editDockerNetCmd)
-	editDockerNetCmd.Flags().StringVarP(&isGeoglobe, "isgeoglobe", "g", "", "是否存在geoglobe服务")
+	editDockerNetCmd.Flags().StringVarP(&isGeoglobe, "isgeoglobe", "g", "", "是否存在geoglobe服务(true/false)")
+	editDockerNetCmd.Flags().StringVarP(&advertiseAddr, "advertise", "", ":2377", "swarm的广播地址")
 }
