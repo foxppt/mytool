@@ -37,7 +37,7 @@ var constraintSvcCmd = &cobra.Command{
 		if dbConf == nil {
 			os.Exit(0)
 		}
-		var dbs *swarmopt.Databases
+		dbs := &swarmopt.Databases{}
 		dbs.Globe, err = dbs.InitDB(&dbConf.Globe)
 		if err != nil {
 			logger.SugarLogger.Panicln(err)
