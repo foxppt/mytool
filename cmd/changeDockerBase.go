@@ -20,7 +20,7 @@ var destDir string
 var changeDockerBaseCmd = &cobra.Command{
 	Use:   "changeDockerBase",
 	Short: "这个命令可以迁移docker的目录",
-	Long:  `本命令支持两个参数-s/--source指定原始目录, -d/--distination指定目标目录, 如果原始目录未指定则为默认的/var/lib/docker. `,
+	Long:  `这个命令可以迁移docker的目录, 指定源目录和目标目录即可.  `,
 	Run: func(cmd *cobra.Command, args []string) {
 		if destDir == "" {
 			logger.SugarLogger.Infoln("目标路径不能为空")
