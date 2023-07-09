@@ -7,7 +7,7 @@ import (
 	"context"
 	"myTool/config"
 	"myTool/logger"
-	"myTool/swarmopt"
+	"myTool/operation"
 	"os"
 
 	"github.com/docker/docker/client"
@@ -42,18 +42,18 @@ var recordeSvcCmd = &cobra.Command{
 			if dbConf == nil {
 				os.Exit(0)
 			}
-			dbs := &swarmopt.Databases{}
+			dbs := &operation.Databases{}
 			dbs.Globe, err = dbs.InitDB(&dbConf.Globe)
 			if err != nil {
 				logger.SugarLogger.Panicln(err)
 			}
-			swarmopt.RecordSvc(ctx, dockerClient, hostConfig, true, dbs, svcConf)
+			operation.RecordSvc(ctx, dockerClient, hostConfig, true, dbs, svcConf)
 		} else {
 			hostConfig := config.GetHostConfig()
 			if hostConfig == nil {
 				os.Exit(0)
 			}
-			swarmopt.RecordSvc(ctx, dockerClient, hostConfig, false, nil, svcConf)
+			operation.RecordSvc(ctx, dockerClient, hostConfig, false, nil, svcConf)
 		}
 	},
 }

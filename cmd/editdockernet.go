@@ -7,7 +7,7 @@ import (
 	"context"
 	"myTool/config"
 	"myTool/logger"
-	"myTool/swarmopt"
+	"myTool/operation"
 	"os"
 
 	"github.com/docker/docker/api/types"
@@ -48,15 +48,15 @@ var editDockerNetCmd = &cobra.Command{
 			if dbConf == nil {
 				os.Exit(0)
 			}
-			dbs := &swarmopt.Databases{}
+			dbs := &operation.Databases{}
 			dbs.Globe, err = dbs.InitDB(&dbConf.Globe)
 			if err != nil {
 				logger.SugarLogger.Panicln(err)
 			}
 
-			swarmopt.RecordSvc(ctx, dockerClient, hostConfig, true, dbs, "services.json")
+			operation.RecordSvc(ctx, dockerClient, hostConfig, true, dbs, "services.json")
 		} else if isGeoglobe == "false" {
-			swarmopt.RecordSvc(ctx, dockerClient, hostConfig, false, nil, "services.json")
+			operation.RecordSvc(ctx, dockerClient, hostConfig, false, nil, "services.json")
 		} else {
 			logger.SugarLogger.Infoln("请指定swarm中service是否为geoglobe的服务. ")
 			os.Exit(0)
@@ -91,12 +91,12 @@ var editDockerNetCmd = &cobra.Command{
 			Labels: map[string]string{},
 		}
 
-		swarmopt.DelService(ctx, dockerClient)
-		swarmopt.RecordNet(ctx, dockerClient, "userDefinedNet.json")
+		operation.DelService(ctx, dockerClient)
+		operation.RecordNet(ctx, dockerClient, "userDefinedNet.json")
 		for _, host := range hostConfig.Host {
-			swarmopt.EditBipConf(host, hostConfig.BIP, true)
+			operation.EditBipConf(host, hostConfig.BIP, true)
 			// 判断主从节点
-			isLeader, err := swarmopt.GetSwarmNodeRole(ctx, dockerClient, host)
+			isLeader, err := operation.GetSwarmNodeRole(ctx, dockerClient, host)
 			if err != nil {
 				logger.SugarLogger.Panicln("获取节点角色失败:", err)
 			}
@@ -105,18 +105,18 @@ var editDockerNetCmd = &cobra.Command{
 				isManager bool
 			}{nodeAddr: host.IP, isManager: isLeader})
 			// 依次退出swarm
-			swarmopt.LeaveSwarm(ctx, dockerClient, host, isLeader)
+			operation.LeaveSwarm(ctx, dockerClient, host, isLeader)
 			// 依次删除docker_gwbridge
-			swarmopt.DelNetwork(ctx, dockerClient, hostConfig, "docker_gwbridge", true)
+			operation.DelNetwork(ctx, dockerClient, hostConfig, "docker_gwbridge", true)
 			// 依次创建docker_gwbridge
-			swarmopt.BuildNetwork(ctx, dockerClient, hostConfig, "docker_gwbridge", netConf, false)
+			operation.BuildNetwork(ctx, dockerClient, hostConfig, "docker_gwbridge", netConf, false)
 		}
 
 		// 主节点创建swarm
-		swarmopt.InitSwarm(ctx, dockerClient, "advertiseAddr")
+		operation.InitSwarm(ctx, dockerClient, "advertiseAddr")
 
 		// 获取join token
-		managerTK, workerTK, err := swarmopt.GetSwarmJoinTK(ctx, dockerClient)
+		managerTK, workerTK, err := operation.GetSwarmJoinTK(ctx, dockerClient)
 		if err != nil {
 			logger.SugarLogger.Panicln(err)
 		}
@@ -126,36 +126,40 @@ var editDockerNetCmd = &cobra.Command{
 		for _, host := range hostConfig.Host {
 			for _, noderole := range nodeRoles {
 				if host.IP == noderole.nodeAddr && !noderole.isManager {
-					swarmopt.JoinSwarm(host, workerTK)
+					operation.JoinSwarm(host, workerTK)
 				} else if host.IP == noderole.nodeAddr && noderole.isManager {
-					swarmopt.JoinSwarm(host, managerTK)
+					operation.JoinSwarm(host, managerTK)
 				}
 			}
 		}
 
 		userDefinedNets := config.GetUserNetConf("userDefinedNet.json")
-		for _, userDefinedNet := range *userDefinedNets {
-			userNetConf := types.NetworkCreate{
-				CheckDuplicate: true,
-				Driver:         userDefinedNet.Driver,
-				Scope:          userDefinedNet.Scope,
-				EnableIPv6:     userDefinedNet.EnableIPv6,
-				IPAM:           &userDefinedNet.IPAM,
-				Internal:       userDefinedNet.Internal,
-				Attachable:     userDefinedNet.Attachable,
-				Ingress:        userDefinedNet.Ingress,
-				ConfigOnly:     userDefinedNet.ConfigOnly,
-				ConfigFrom:     &userDefinedNet.ConfigFrom,
-				Options:        userDefinedNet.Options,
-				Labels:         userDefinedNet.Labels,
+		if userDefinedNets != nil {
+			for _, userDefinedNet := range *userDefinedNets {
+				userNetConf := types.NetworkCreate{
+					CheckDuplicate: true,
+					Driver:         userDefinedNet.Driver,
+					Scope:          userDefinedNet.Scope,
+					EnableIPv6:     userDefinedNet.EnableIPv6,
+					IPAM:           &userDefinedNet.IPAM,
+					Internal:       userDefinedNet.Internal,
+					Attachable:     userDefinedNet.Attachable,
+					Ingress:        userDefinedNet.Ingress,
+					ConfigOnly:     userDefinedNet.ConfigOnly,
+					ConfigFrom:     &userDefinedNet.ConfigFrom,
+					Options:        userDefinedNet.Options,
+					Labels:         userDefinedNet.Labels,
+				}
+				operation.BuildNetwork(ctx, dockerClient, hostConfig, userDefinedNet.Name, userNetConf, false)
 			}
-			swarmopt.BuildNetwork(ctx, dockerClient, hostConfig, userDefinedNet.Name, userNetConf, false)
 		}
 
 		// 重建service
 		serviceConfig := config.GetSvcConfig("services.json")
 		if serviceConfig != nil {
-			swarmopt.RebuildSvc(ctx, dockerClient, serviceConfig)
+			operation.RebuildSvc(ctx, dockerClient, serviceConfig)
+		} else {
+			logger.SugarLogger.Errorln("服务配置读取失败. ")
 		}
 	},
 }

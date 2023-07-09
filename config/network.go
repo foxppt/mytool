@@ -11,6 +11,9 @@ import (
 var userDefinedNets *[]types.NetworkResource
 
 func GetUserNetConf(configPath string) *[]types.NetworkResource {
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		return nil
+	}
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		logger.SugarLogger.Errorln(err)

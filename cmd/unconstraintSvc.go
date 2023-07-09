@@ -5,7 +5,7 @@ package cmd
 
 import (
 	"context"
-	"myTool/swarmopt"
+	"myTool/operation"
 
 	"github.com/docker/docker/client"
 	"github.com/spf13/cobra"
@@ -25,7 +25,7 @@ var unconstraintSvcCmd = &cobra.Command{
 		if err != nil {
 			panic(err)
 		}
-		swarmopt.UnConstraitAll(ctx, dockerClient)
+		operation.UnConstraitAll(ctx, dockerClient)
 	},
 }
 

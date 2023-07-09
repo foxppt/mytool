@@ -7,7 +7,7 @@ import (
 	"context"
 	"myTool/config"
 	"myTool/logger"
-	"myTool/swarmopt"
+	"myTool/operation"
 	"os"
 
 	"github.com/docker/docker/api/types"
@@ -39,7 +39,7 @@ var expandIngressCmd = &cobra.Command{
 		if dbConf == nil {
 			os.Exit(0)
 		}
-		dbs := &swarmopt.Databases{}
+		dbs := &operation.Databases{}
 		dbs.Globe, err = dbs.InitDB(&dbConf.Globe)
 		if err != nil {
 			logger.SugarLogger.Panicln(err)
@@ -73,16 +73,16 @@ var expandIngressCmd = &cobra.Command{
 			Labels: map[string]string{},
 		}
 
-		swarmopt.RecordSvc(ctx, dockerClient, hostConfig, true, dbs, "services.json")
-		swarmopt.DelService(ctx, dockerClient)
-		swarmopt.DelNetwork(ctx, dockerClient, hostConfig, "ingress", true)
-		swarmopt.BuildNetwork(ctx, dockerClient, hostConfig, "ingress", netConf, false)
+		operation.RecordSvc(ctx, dockerClient, hostConfig, true, dbs, "services.json")
+		operation.DelService(ctx, dockerClient)
+		operation.DelNetwork(ctx, dockerClient, hostConfig, "ingress", true)
+		operation.BuildNetwork(ctx, dockerClient, hostConfig, "ingress", netConf, false)
 
 		serviceConfig := config.GetSvcConfig("services.json")
 		if serviceConfig == nil {
 			logger.SugarLogger.Panicln("读取service配置失败")
 		}
-		swarmopt.RebuildSvc(ctx, dockerClient, serviceConfig)
+		operation.RebuildSvc(ctx, dockerClient, serviceConfig)
 	},
 }
 

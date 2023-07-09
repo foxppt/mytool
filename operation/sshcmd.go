@@ -5,14 +5,17 @@ import (
 	"myTool/logger"
 	"os/exec"
 	"strconv"
+	"strings"
 
 	"golang.org/x/crypto/ssh"
 )
 
 // 如果 &hostConf 传入为空值则代表bash命令在本地执行
 func execCMD(hostConf *config.HostConf, command string) (string, error) {
+	logger.SugarLogger.Infoln("执行bash命令: ", command)
 	if hostConf == nil {
-		cmd := exec.Command(command)
+		args := strings.Split(command, " ")
+		cmd := exec.Command(args[0], args[1:]...)
 		resp, err := cmd.CombinedOutput()
 		if err != nil {
 			return string(resp), err

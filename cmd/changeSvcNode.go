@@ -7,7 +7,7 @@ import (
 	"context"
 	"myTool/config"
 	"myTool/logger"
-	"myTool/swarmopt"
+	"myTool/operation"
 	"os"
 
 	"github.com/docker/docker/client"
@@ -32,7 +32,7 @@ var changeSvcNodeCmd = &cobra.Command{
 		if dbConf == nil {
 			os.Exit(0)
 		}
-		dbs := &swarmopt.Databases{}
+		dbs := &operation.Databases{}
 		dbs.Globe, err = dbs.InitDB(&dbConf.Globe)
 		if err != nil {
 			logger.SugarLogger.Panicln(err)
@@ -49,7 +49,7 @@ var changeSvcNodeCmd = &cobra.Command{
 		}
 
 		if svcName != "" && nodeTarget != "" {
-			err = swarmopt.ChangeSvcNode(ctx, dockerClient, dbs, svcName, nodeTarget)
+			err = operation.ChangeSvcNode(ctx, dockerClient, dbs, svcName, nodeTarget)
 			if err != nil {
 				logger.SugarLogger.DPanicln(err)
 			}

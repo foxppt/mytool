@@ -9,6 +9,9 @@ import (
 var serviceConfig *[]ServiceConfig
 
 func GetSvcConfig(configPath string) *[]ServiceConfig {
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		return nil
+	}
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		logger.SugarLogger.Errorln(err)

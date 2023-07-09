@@ -7,7 +7,7 @@ import (
 	"context"
 	"myTool/config"
 	"myTool/logger"
-	"myTool/swarmopt"
+	"myTool/operation"
 	"os"
 
 	"github.com/docker/docker/client"
@@ -37,20 +37,20 @@ var constraintSvcCmd = &cobra.Command{
 		if dbConf == nil {
 			os.Exit(0)
 		}
-		dbs := &swarmopt.Databases{}
+		dbs := &operation.Databases{}
 		dbs.Globe, err = dbs.InitDB(&dbConf.Globe)
 		if err != nil {
 			logger.SugarLogger.Panicln(err)
 		}
 
-		swarmopt.RecordSvc(ctx, dockerClient, hostConfig, true, dbs, "services.json")
+		operation.RecordSvc(ctx, dockerClient, hostConfig, true, dbs, "services.json")
 
 		serviceConfig := config.GetSvcConfig("services.json")
 		if serviceConfig == nil {
 			logger.SugarLogger.Panicln("读取service配置失败")
 		}
-		swarmopt.UnConstraitAll(ctx, dockerClient)
-		swarmopt.ConstraitService(ctx, dockerClient, serviceConfig)
+		operation.UnConstraitAll(ctx, dockerClient)
+		operation.ConstraitService(ctx, dockerClient, serviceConfig)
 	},
 }
 

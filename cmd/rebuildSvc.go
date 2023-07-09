@@ -7,7 +7,7 @@ import (
 	"context"
 	"myTool/config"
 	"myTool/logger"
-	"myTool/swarmopt"
+	"myTool/operation"
 
 	"github.com/docker/docker/client"
 	"github.com/spf13/cobra"
@@ -32,7 +32,7 @@ var rebuildSvcCmd = &cobra.Command{
 		if serviceConfig == nil {
 			logger.SugarLogger.Panicln("读取service配置失败")
 		}
-		swarmopt.RebuildSvc(ctx, dockerClient, serviceConfig)
+		operation.RebuildSvc(ctx, dockerClient, serviceConfig)
 	},
 }
 
