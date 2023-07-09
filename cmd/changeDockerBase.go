@@ -45,5 +45,5 @@ var changeDockerBaseCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(changeDockerBaseCmd)
 	changeDockerBaseCmd.Flags().StringVarP(&srcDir, "source", "s", "/var/lib/docker", "docker数据目录的源目录")
-	changeDockerBaseCmd.Flags().StringVarP(&destDir, "distination", "d", "", "docker数据目录的目标目录")
+	changeDockerBaseCmd.Flags().StringVarP(&destDir, "destination", "d", "", "docker数据目录的目标目录")
 }
