@@ -28,7 +28,7 @@ var changeSvcNodeCmd = &cobra.Command{
 		if err != nil {
 			panic(err)
 		}
-		dbConf := config.GetDBConfig(false)
+		dbConf := config.GetDBConfig()
 		if dbConf == nil {
 			os.Exit(0)
 		}

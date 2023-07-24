@@ -1,6 +1,7 @@
 package config
 
 import (
+	"html/template"
 	"myTool/logger"
 	"os"
 
@@ -9,17 +10,45 @@ import (
 
 var DBConf *DBConfig
 
-func GetDBConfig(globeOnly bool) *DBConfig {
+const tmplDB string = `# 数据库配置文件
+# servicemgr配置
+globe:
+{{- with .Globe }}
+  host:   {{ .Host }}   # 数据库主机
+  port:   {{ .Port }}   # 数据库端口
+  dbname: {{ .DBName }} # 数据库库名
+  user:   {{ .User }}   # 数据库用户名
+  passwd: {{ .Passwd }} # 数据库密码
+{{- end }}
+
+# 服务中心配置
+serviceCenter:
+{{- with .ServiceCenter }}
+  host:   {{ .Host }}   # 数据库主机
+  port:   {{ .Port }}   # 数据库端口
+  dbname: {{ .DBName }} # 数据库库名
+  user:   {{ .User }}   # 数据库用户名
+  passwd: {{ .Passwd }} # 数据库密码
+{{- end }}
+
+# 服务网关配置
+serviceProxy:
+{{- with .ServiceProxy }}
+  host:   {{ .Host }}   # 数据库主机
+  port:   {{ .Port }}   # 数据库端口
+  dbname: {{ .DBName }} # 数据库库名
+  user:   {{ .User }}   # 数据库用户名
+  passwd: {{ .Passwd }} # 数据库密码
+{{- end }}`
+
+func GetDBConfig() *DBConfig {
 	if _, err := os.Stat("config/db.yml"); os.IsNotExist(err) {
 		if _, err := os.Stat("config"); os.IsNotExist(err) {
 			os.Mkdir("config", 0775)
 		}
 		logger.SugarLogger.Infoln("数据库配置文件不存在")
-		if globeOnly {
-			initDBConf(globeOnly)
-		} else {
-			initDBConf(!globeOnly)
-		}
+
+		initDBConf()
 
 		logger.SugarLogger.Infoln("示例配置文件 config/db.yml 已经生成, 请根据实际情况修改. ")
 		logger.SugarLogger.Infoln("本次运行将直接退出, 修改正确后再次运行本程序. ")
@@ -37,7 +66,7 @@ func GetDBConfig(globeOnly bool) *DBConfig {
 	return DBConf
 }
 
-func initDBConf(globeOnly bool) {
+func initDBConf() {
 	var examDBConf DBConfig
 	examConn := Mysql{
 		Host:   "数据库ip",
@@ -46,26 +75,19 @@ func initDBConf(globeOnly bool) {
 		User:   "数据库用户名",
 		Passwd: "数据库密码",
 	}
-	if globeOnly {
-		examDBConf.Globe = examConn
-		examDBConf.ServiceCenter = Mysql{}
-		examDBConf.ServiceProxy = Mysql{}
-	} else {
-		examDBConf.Globe = examConn
-		examDBConf.ServiceCenter = examConn
-		examDBConf.ServiceProxy = examConn
-	}
+	examDBConf.Globe = examConn
+	examDBConf.ServiceCenter = examConn
+	examDBConf.ServiceProxy = examConn
 
-	confStr, err := yaml.Marshal(examDBConf)
-	if err != nil {
-		panic(err)
-	}
+	tmplParser := template.Must(template.New("dbConfig").Parse(tmplDB))
+
 	f, err := os.Create("config/db.yml")
 	if err != nil {
 		panic(err)
 	}
 	defer f.Close()
-	_, err = f.Write([]byte(confStr))
+
+	err = tmplParser.Execute(f, examDBConf)
 	if err != nil {
 		panic(err)
 	}

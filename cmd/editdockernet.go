@@ -44,7 +44,7 @@ var editDockerNetCmd = &cobra.Command{
 		}
 
 		if isGeoglobe == "true" {
-			dbConf := config.GetDBConfig(true)
+			dbConf := config.GetDBConfig()
 			if dbConf == nil {
 				os.Exit(0)
 			}

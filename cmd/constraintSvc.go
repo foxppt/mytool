@@ -33,7 +33,7 @@ var constraintSvcCmd = &cobra.Command{
 			os.Exit(0)
 		}
 
-		dbConf := config.GetDBConfig(true)
+		dbConf := config.GetDBConfig()
 		if dbConf == nil {
 			os.Exit(0)
 		}

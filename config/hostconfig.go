@@ -1,6 +1,7 @@
 package config
 
 import (
+	"html/template"
 	"myTool/logger"
 	"os"
 
@@ -8,6 +9,30 @@ import (
 )
 
 var HostConfig *Config
+
+// range循环来遍历Host列表，根据模板生成了每个主机的配置信息
+// 在range .Host和end}}之间的末尾加上{{-，表示去除前一个标记之后的空白字符（包括换行符），这样就可以消除空行。
+const tmplHost string = `# 主机配置
+host:
+{{- range .Host}}
+- ip: {{.IP}}
+    port: {{.Port}}
+    username: {{.Username}}
+    password: {{.Password}}
+{{- end}}
+
+# ingress网段配置  
+ingress:
+  subnet: {{.Ingress.Subnet}}
+  gateway: {{.Ingress.Gateway}}
+
+# docker_gwbridge网段配置  
+docker_gwbridge:
+  subnet: {{.Gwbridge.Subnet}}
+  gateway: {{.Gwbridge.Gateway}}
+
+# bip网段配置  
+bip: {{.BIP}}`
 
 // initConfig 初始化配置文件
 func initConfig() {
@@ -29,17 +54,14 @@ func initConfig() {
 	examHost.Gwbridge.Gateway = "172.30.0.254"
 	examHost.BIP = "172.31.0.1/24"
 
-	confStr, err := yaml.Marshal(examHost)
-	if err != nil {
-		panic(err)
-	}
-
+	tmplParser := template.Must(template.New("hostConfig").Parse(tmplHost))
 	f, err := os.Create("config/config.yml")
 	if err != nil {
 		panic(err)
 	}
 	defer f.Close()
-	_, err = f.Write([]byte(confStr))
+
+	err = tmplParser.Execute(f, examHost)
 	if err != nil {
 		panic(err)
 	}
