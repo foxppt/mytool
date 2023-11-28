@@ -48,13 +48,7 @@ var editDockerNetCmd = &cobra.Command{
 			if dbConf == nil {
 				os.Exit(0)
 			}
-			dbs := &operation.Databases{}
-			dbs.Globe, err = dbs.InitDB(&dbConf.Globe)
-			if err != nil {
-				logger.SugarLogger.Panicln(err)
-			}
-
-			operation.RecordSvc(ctx, dockerClient, hostConfig, true, dbs, "services.json")
+			operation.RecordSvc(ctx, dockerClient, hostConfig, true, dbConf, "services.json")
 		} else if isGeoglobe == "false" {
 			operation.RecordSvc(ctx, dockerClient, hostConfig, false, nil, "services.json")
 		} else {
@@ -113,7 +107,7 @@ var editDockerNetCmd = &cobra.Command{
 		}
 
 		// 主节点创建swarm
-		operation.InitSwarm(ctx, dockerClient, "advertiseAddr")
+		operation.InitSwarm(ctx, dockerClient, advertiseAddr)
 
 		// 获取join token
 		managerTK, workerTK, err := operation.GetSwarmJoinTK(ctx, dockerClient)
@@ -132,6 +126,37 @@ var editDockerNetCmd = &cobra.Command{
 				}
 			}
 		}
+
+		ipaconfig = network.IPAMConfig{
+			Subnet:  hostConfig.Ingress.Subnet,
+			Gateway: hostConfig.Ingress.Gateway,
+		}
+		netConf = types.NetworkCreate{
+			Driver:     "overlay",
+			Scope:      "swarm",
+			EnableIPv6: false,
+			IPAM: &network.IPAM{
+				Driver: "default",
+				Config: []network.IPAMConfig{
+					ipaconfig,
+				},
+			},
+			Internal:   false,
+			Attachable: false,
+			Ingress:    true,
+			ConfigOnly: false,
+			ConfigFrom: &network.ConfigReference{
+				Network: "",
+			},
+			Options: map[string]string{
+				"com.docker.network.driver.overlay.vxlanid_list": "4098",
+				"com.docker.network.mtu":                         "1400",
+			},
+			Labels: map[string]string{},
+		}
+
+		operation.DelNetwork(ctx, dockerClient, hostConfig, "ingress", true)
+		operation.BuildNetwork(ctx, dockerClient, hostConfig, "ingress", netConf, false)
 
 		userDefinedNets := config.GetUserNetConf("userDefinedNet.json")
 		if userDefinedNets != nil {
@@ -157,7 +182,15 @@ var editDockerNetCmd = &cobra.Command{
 		// 重建service
 		serviceConfig := config.GetSvcConfig("services.json")
 		if serviceConfig != nil {
-			operation.RebuildSvc(ctx, dockerClient, serviceConfig)
+			if isGeoglobe == "true" {
+				dbConf := config.GetDBConfig()
+				if dbConf == nil {
+					os.Exit(0)
+				}
+				operation.RebuildSvc(ctx, dockerClient, serviceConfig, dbConf)
+			} else {
+				operation.RebuildSvc(ctx, dockerClient, serviceConfig, nil)
+			}
 		} else {
 			logger.SugarLogger.Errorln("服务配置读取失败. ")
 		}

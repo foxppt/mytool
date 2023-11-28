@@ -32,24 +32,9 @@ var changeSvcNodeCmd = &cobra.Command{
 		if dbConf == nil {
 			os.Exit(0)
 		}
-		dbs := &operation.Databases{}
-		dbs.Globe, err = dbs.InitDB(&dbConf.Globe)
-		if err != nil {
-			logger.SugarLogger.Panicln(err)
-		}
-
-		dbs.ServiceCenter, err = dbs.InitDB(&dbConf.ServiceCenter)
-		if err != nil {
-			logger.SugarLogger.Panicln(err)
-		}
-
-		dbs.ServiceProxy, err = dbs.InitDB(&dbConf.ServiceProxy)
-		if err != nil {
-			logger.SugarLogger.Panicln(err)
-		}
 
 		if svcName != "" && nodeTarget != "" {
-			err = operation.ChangeSvcNode(ctx, dockerClient, dbs, svcName, nodeTarget)
+			err = operation.ChangeSvcNode(ctx, dockerClient, dbConf, svcName, nodeTarget)
 			if err != nil {
 				logger.SugarLogger.DPanicln(err)
 			}

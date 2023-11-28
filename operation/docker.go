@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/client"
-	"github.com/shirou/gopsutil/v3/disk"
+	"github.com/shirou/gopsutil/disk"
 )
 
 const (

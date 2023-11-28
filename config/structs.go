@@ -35,15 +35,17 @@ type ServiceConfig struct {
 }
 
 type DBConfig struct {
-	Globe         Mysql `yaml:"globe"`
-	ServiceCenter Mysql `yaml:"serviceCenter"`
-	ServiceProxy  Mysql `yaml:"serviceProxy"`
+	Globe         DB `yaml:"globe"`
+	ServiceCenter DB `yaml:"serviceCenter"`
+	ServiceProxy  DB `yaml:"serviceProxy"`
 }
 
-type Mysql struct {
+type DB struct {
+	DBType string `yaml:"dbtype"`
 	Host   string `yaml:"host"`
 	Port   string `yaml:"port"`
 	DBName string `yaml:"dbname"`
+	Schema string `yaml:"schema"`
 	User   string `yaml:"user"`
 	Passwd string `yaml:"passwd"`
 }

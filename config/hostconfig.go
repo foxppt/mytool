@@ -16,9 +16,9 @@ const tmplHost string = `# 主机配置
 host:
 {{- range .Host}}
 - ip: {{.IP}}
-    port: {{.Port}}
-    username: {{.Username}}
-    password: {{.Password}}
+  port: {{.Port}}
+  username: {{.Username}}
+  password: {{.Password}}
 {{- end}}
 
 # ingress网段配置  

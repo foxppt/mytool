@@ -37,13 +37,8 @@ var constraintSvcCmd = &cobra.Command{
 		if dbConf == nil {
 			os.Exit(0)
 		}
-		dbs := &operation.Databases{}
-		dbs.Globe, err = dbs.InitDB(&dbConf.Globe)
-		if err != nil {
-			logger.SugarLogger.Panicln(err)
-		}
 
-		operation.RecordSvc(ctx, dockerClient, hostConfig, true, dbs, "services.json")
+		operation.RecordSvc(ctx, dockerClient, hostConfig, true, dbConf, "services.json")
 
 		serviceConfig := config.GetSvcConfig("services.json")
 		if serviceConfig == nil {

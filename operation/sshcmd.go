@@ -31,7 +31,8 @@ func execCMD(hostConf *config.HostConf, command string) (string, error) {
 		}
 
 		// 连接到远程 SSH 服务器
-		conn, err := ssh.Dial("tcp", hostConf.Username+":"+strconv.Itoa(hostConf.Port), sshConfig)
+		logger.SugarLogger.Infoln("ssh info: ", sshConfig.User+"@"+hostConf.IP+":"+strconv.Itoa(hostConf.Port))
+		conn, err := ssh.Dial("tcp", hostConf.IP+":"+strconv.Itoa(hostConf.Port), sshConfig)
 		if err != nil {
 			logger.SugarLogger.Fatalf("SSH远程连接失败 : %s", err)
 		}

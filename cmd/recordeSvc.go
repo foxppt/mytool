@@ -6,7 +6,6 @@ package cmd
 import (
 	"context"
 	"myTool/config"
-	"myTool/logger"
 	"myTool/operation"
 	"os"
 
@@ -42,12 +41,7 @@ var recordeSvcCmd = &cobra.Command{
 			if dbConf == nil {
 				os.Exit(0)
 			}
-			dbs := &operation.Databases{}
-			dbs.Globe, err = dbs.InitDB(&dbConf.Globe)
-			if err != nil {
-				logger.SugarLogger.Panicln(err)
-			}
-			operation.RecordSvc(ctx, dockerClient, hostConfig, true, dbs, svcConf)
+			operation.RecordSvc(ctx, dockerClient, hostConfig, true, dbConf, svcConf)
 		} else {
 			hostConfig := config.GetHostConfig()
 			if hostConfig == nil {

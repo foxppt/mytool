@@ -8,6 +8,7 @@ import (
 	"myTool/config"
 	"myTool/logger"
 	"myTool/operation"
+	"os"
 
 	"github.com/docker/docker/client"
 	"github.com/spf13/cobra"
@@ -32,7 +33,15 @@ var rebuildSvcCmd = &cobra.Command{
 		if serviceConfig == nil {
 			logger.SugarLogger.Panicln("读取service配置失败")
 		}
-		operation.RebuildSvc(ctx, dockerClient, serviceConfig)
+
+		if _, err := os.Stat("config/db.yml"); os.IsExist(err) {
+			dbConf := config.GetDBConfig()
+			if dbConf == nil {
+				os.Exit(0)
+			}
+			operation.RebuildSvc(ctx, dockerClient, serviceConfig, dbConf)
+		}
+		operation.RebuildSvc(ctx, dockerClient, serviceConfig, nil)
 	},
 }
 

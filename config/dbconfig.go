@@ -14,9 +14,11 @@ const tmplDB string = `# 数据库配置文件
 # servicemgr配置
 globe:
 {{- with .Globe }}
+  dbtype: {{ .DBType }} # 数据库类型
   host:   {{ .Host }}   # 数据库主机
   port:   {{ .Port }}   # 数据库端口
   dbname: {{ .DBName }} # 数据库库名
+  schema: {{ .Schema }} # 数据库schema
   user:   {{ .User }}   # 数据库用户名
   passwd: {{ .Passwd }} # 数据库密码
 {{- end }}
@@ -24,9 +26,11 @@ globe:
 # 服务中心配置
 serviceCenter:
 {{- with .ServiceCenter }}
+  dbtype: {{ .DBType }} # 数据库类型
   host:   {{ .Host }}   # 数据库主机
   port:   {{ .Port }}   # 数据库端口
   dbname: {{ .DBName }} # 数据库库名
+  schema: {{ .Schema }} # 数据库schema
   user:   {{ .User }}   # 数据库用户名
   passwd: {{ .Passwd }} # 数据库密码
 {{- end }}
@@ -34,9 +38,11 @@ serviceCenter:
 # 服务网关配置
 serviceProxy:
 {{- with .ServiceProxy }}
+  dbtype: {{ .DBType }} # 数据库类型
   host:   {{ .Host }}   # 数据库主机
   port:   {{ .Port }}   # 数据库端口
   dbname: {{ .DBName }} # 数据库库名
+  schema: {{ .Schema }} # 数据库schema, 如果是Mysql, 则不需要
   user:   {{ .User }}   # 数据库用户名
   passwd: {{ .Passwd }} # 数据库密码
 {{- end }}`
@@ -68,10 +74,12 @@ func GetDBConfig() *DBConfig {
 
 func initDBConf() {
 	var examDBConf DBConfig
-	examConn := Mysql{
+	examConn := DB{
+		DBType: "mysql/postgres",
 		Host:   "数据库ip",
 		Port:   "数据库端口",
 		DBName: "数据库库名",
+		Schema: "\"PG数据库需要指定, mysql只保留引号不填写任何内容\"",
 		User:   "数据库用户名",
 		Passwd: "数据库密码",
 	}

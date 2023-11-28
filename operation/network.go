@@ -20,6 +20,7 @@ func EditBipConf(host config.HostConf, bipStr string, needRestartDocker bool) {
 	logger.SugarLogger.Infoln("修改", host.IP, "主机的docker的bip配置: ")
 	var cmd string
 	// 判断文件是否存在
+	logger.SugarLogger.Infoln("判断", host.IP, "主机的docker的daemon.json文件是否存在")
 	cmd = `[ -f /etc/docker/daemon.json ] && echo true || echo false`
 	fileExists, err := execCMD(&host, cmd)
 	if err != nil {
@@ -210,15 +211,15 @@ func RecordNet(ctx context.Context, dockerClient *client.Client, netConf string)
 			netStruct = append(netStruct, net)
 		}
 	}
-	// 将 svcStructs 编码为JSON并将其写入services.json
+	// 将 svcStructs 编码为JSON并将其写入userDefinedNet.json
 	jsonBytes, err := json.MarshalIndent(netStruct, "", "  ")
 	if err != nil {
 		panic(err)
 	}
-	// 判断services.json是否存在，如果存在就备份，备份文件名为services.json_时间戳
+	// 判断userDefinedNet.json是否存在，如果存在就备份，备份文件名为userDefinedNet.json_时间戳
 	timestamp := time.Now().Unix()
 	if _, err := os.Stat(netConf); !os.IsNotExist(err) {
-		// 备份文件名为services.json_时间戳
+		// 备份文件名为userDefinedNet.json_时间戳
 		logger.SugarLogger.Infoln(netConf, "已经存在")
 		err := os.Rename(netConf, fmt.Sprintf(netConf+"_%d", timestamp))
 		if err != nil {

@@ -39,12 +39,6 @@ var expandIngressCmd = &cobra.Command{
 		if dbConf == nil {
 			os.Exit(0)
 		}
-		dbs := &operation.Databases{}
-		dbs.Globe, err = dbs.InitDB(&dbConf.Globe)
-		if err != nil {
-			logger.SugarLogger.Panicln(err)
-		}
-
 		ipaconfig := network.IPAMConfig{
 			Subnet:  hostConfig.Ingress.Subnet,
 			Gateway: hostConfig.Ingress.Gateway,
@@ -73,7 +67,7 @@ var expandIngressCmd = &cobra.Command{
 			Labels: map[string]string{},
 		}
 
-		operation.RecordSvc(ctx, dockerClient, hostConfig, true, dbs, "services.json")
+		operation.RecordSvc(ctx, dockerClient, hostConfig, true, dbConf, "services.json")
 		operation.DelService(ctx, dockerClient)
 		operation.DelNetwork(ctx, dockerClient, hostConfig, "ingress", true)
 		operation.BuildNetwork(ctx, dockerClient, hostConfig, "ingress", netConf, false)
@@ -82,7 +76,7 @@ var expandIngressCmd = &cobra.Command{
 		if serviceConfig == nil {
 			logger.SugarLogger.Panicln("读取service配置失败")
 		}
-		operation.RebuildSvc(ctx, dockerClient, serviceConfig)
+		operation.RebuildSvc(ctx, dockerClient, serviceConfig, dbConf)
 	},
 }
 
