@@ -27,5 +27,5 @@ func ConnectionInit(dbConf config.DB) (*gorm.DB, error) {
 		}
 		return db, nil
 	}
-	return nil, errors.New("数据库类型不受支持, 目前只支持mysql和pg")
+	return nil, errors.New("数据库类型不受支持, 目前只支持mysql和postgres")
 }
