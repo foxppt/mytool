@@ -55,7 +55,7 @@ func JoinSwarm(host config.HostConf, joinToken string) error {
 		logger.SugarLogger.Errorln(host.IP, "加入swarm失败: ", resp, err)
 	}
 	logger.SugarLogger.Infoln(host.IP, "加入swarm成功. ")
-	return nil
+	return err
 }
 
 // GetSwarmLeader 获取Swarm节点角色

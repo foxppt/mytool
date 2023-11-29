@@ -259,7 +259,7 @@ func RebuildSvc(ctx context.Context, dockerClient *client.Client, serviceConfig 
 		}
 	}
 
-	return nil
+	return err
 }
 
 // ConstraitService 约束服务到服务初次投递的节点

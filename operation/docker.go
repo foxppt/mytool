@@ -131,16 +131,13 @@ func ChangeDockerBaseDir(ctx context.Context, dockerClient *client.Client, srcDi
 			}
 		}
 	}
-	return nil
+	return err
 }
 
 // 判断	DockerRootDir
 func checkSrcISDockerRootDir(ctx context.Context, dockerClient *client.Client) (string, error) {
 	dockerInfo, err := dockerClient.Info(ctx)
-	if err != nil {
-		return "", err
-	}
-	return dockerInfo.DockerRootDir, nil
+	return dockerInfo.DockerRootDir, err
 }
 
 // 计算文件夹大小
@@ -229,10 +226,7 @@ func editDataroot(srcDir, destDir string) error {
 			return err
 		}
 		err = os.WriteFile("/etc/docker/daemon.json", updatedJsonStr, 0644)
-		if err != nil {
-			return err
-		}
-		return nil
+		return err
 	}
 }
 
@@ -280,7 +274,6 @@ func copyDir(srcDir, destDir string) error {
 	resp, err := execCMD(nil, strings.Join(cpArgs, " ")+" "+destDir)
 	if err != nil {
 		logger.SugarLogger.Errorln(resp, err)
-		return err
 	}
-	return nil
+	return err
 }
