@@ -68,7 +68,7 @@ func RecordSvc(ctx context.Context, dockerClient *client.Client, hostConfig *con
 	// ip匹配正则
 	ipRegex := regexp.MustCompile(`\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}`)
 	// 数据库连接对象
-	logger.SugarLogger.Infof("连接ServiceMgr数据库")
+	logger.SugarLogger.Infof("连接ServiceMgr数据库...")
 	dbGlobe, err := ConnectionInit(dbConf.Globe)
 	if dbGlobe == nil {
 		logger.SugarLogger.Infof("连接到%s数据库: %s@%s:%s/%s", dbConf.Globe.DBType, dbConf.Globe.User, dbConf.Globe.Host, dbConf.Globe.Port, dbConf.Globe.DBName)
@@ -227,7 +227,7 @@ func RebuildSvc(ctx context.Context, dockerClient *client.Client, serviceConfig 
 
 		// 如果是Globe的服务就更新下数据库记录，否则可能删除的时候会有资源遗留
 		if dbConf != nil {
-			logger.SugarLogger.Infof("连接ServiceMgr数据库")
+			logger.SugarLogger.Infof("连接ServiceMgr数据库...")
 			dbGlobe, err := ConnectionInit(dbConf.Globe)
 			if err == nil {
 				logger.SugarLogger.Infof("连接到%s数据库: %s@%s:%s/%s", dbConf.Globe.DBType, dbConf.Globe.User, dbConf.Globe.Host, dbConf.Globe.Port, dbConf.Globe.DBName)
@@ -308,7 +308,7 @@ func ChangeSvcNode(ctx context.Context, dockerClient *client.Client, dbConf *con
 		panic(err)
 	}
 
-	logger.SugarLogger.Infof("连接ServiceMgr数据库")
+	logger.SugarLogger.Infof("连接ServiceMgr数据库...")
 	dbGlobe, err := ConnectionInit(dbConf.Globe)
 	if err == nil {
 		logger.SugarLogger.Infof("连接到%s数据库: %s@%s:%s/%s", dbConf.Globe.DBType, dbConf.Globe.User, dbConf.Globe.Host, dbConf.Globe.Port, dbConf.Globe.DBName)
@@ -363,7 +363,7 @@ func ChangeSvcNode(ctx context.Context, dockerClient *client.Client, dbConf *con
 	dbServiceID = serviceResults.ParamValue
 	logger.SugarLogger.Infof("查询到的服务ID: %s, 服务名称: %s", dbServiceID, serviceName)
 
-	logger.SugarLogger.Infof("连接服务中心数据库")
+	logger.SugarLogger.Infof("连接服务中心数据库...")
 	dbServiceCenter, err := ConnectionInit(dbConf.ServiceCenter)
 	if err == nil {
 		logger.SugarLogger.Infof("连接到%s数据库: %s@%s:%s/%s", dbConf.ServiceCenter.DBType, dbConf.ServiceCenter.User, dbConf.ServiceCenter.Host, dbConf.ServiceCenter.Port, dbConf.ServiceCenter.DBName)
@@ -371,7 +371,7 @@ func ChangeSvcNode(ctx context.Context, dockerClient *client.Client, dbConf *con
 		logger.SugarLogger.Panicln(err)
 	}
 
-	logger.SugarLogger.Infof("连接服务网关数据库")
+	logger.SugarLogger.Infof("连接服务网关数据库...")
 	dbServiceProxy, err := ConnectionInit(dbConf.ServiceProxy)
 	if err == nil {
 		logger.SugarLogger.Infof("连接到%s数据库: %s@%s:%s/%s", dbConf.ServiceProxy.DBType, dbConf.ServiceProxy.User, dbConf.ServiceProxy.Host, dbConf.ServiceProxy.Port, dbConf.ServiceProxy.DBName)
