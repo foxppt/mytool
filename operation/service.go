@@ -18,43 +18,61 @@ import (
 	"github.com/docker/docker/client"
 )
 
+// GeoGlobe ggs_sr_serviceinfo 表结构体
 type GGSSrServiceinfo struct {
 	ID         int    `gorm:"column:id;type:int4"`
 	ParamValue string `gorm:"column:paramvalue;type:bytea"`
 }
 
+// GeoSmarter sc_service_cluster 表结构体
 type ScServiceCluster struct {
 	ServiceAddress string `gorm:"column:service_address;type:varchar(255)"`
 }
 
+// GeoSmarter proxy_cluster 表结构体
 type ProxyCluster struct {
 	PhysicalAddress string `gorm:"column:physical_address;type:varchar(255)"`
+}
+
+// GeoSmarter sc_service 表结构体
+type ScService struct {
+	ID string `gorm:"column:id;type:varchar(255)"`
+}
+
+// GeoSmarter proxy 表结构体
+type Proxy struct {
+	ID string `gorm:"column:id;type:varchar(255)"`
 }
 
 // RecordSvc 记录swarm中service的信息
 func RecordSvc(ctx context.Context, dockerClient *client.Client, hostConfig *config.Config, isGlobe bool, dbConf *config.DBConfig, svcConf string) {
 	var svcStructs []config.ServiceConfig
-
+	// 获取服务信息
 	serviceList, err := dockerClient.ServiceList(ctx, types.ServiceListOptions{})
 	if err != nil {
 		panic(err)
 	}
 
+	// 获取网络信息
 	networks, err := dockerClient.NetworkList(ctx, types.NetworkListOptions{})
 	if err != nil {
 		panic(err)
 	}
 
+	// 获取节点信息
 	nodeList, err := dockerClient.NodeList(ctx, types.NodeListOptions{})
 	if err != nil {
 		logger.SugarLogger.Fatalln(err)
 	}
 
+	// ip匹配正则
 	ipRegex := regexp.MustCompile(`\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}`)
-	// 遍历服务并将相应的信息附加到 svcStructs
-	dbGlobe := ConnectionInit(dbConf.Globe)
+	// 数据库连接对象
+	dbGlobe, err := ConnectionInit(dbConf.Globe)
 	if dbGlobe == nil {
-		logger.SugarLogger.Errorln("创建数据库失败, 数据库类型不受支持")
+		logger.SugarLogger.Infof("连接到%s数据库: %s@%s:%s/%s", dbConf.Globe.DBType, dbConf.Globe.User, dbConf.Globe.Host, dbConf.Globe.Port, dbConf.Globe.DBName)
+	} else {
+		logger.SugarLogger.Panicln(err)
 	}
 	var serviceResults GGSSrServiceinfo
 	var schema string
@@ -63,6 +81,7 @@ func RecordSvc(ctx context.Context, dockerClient *client.Client, hostConfig *con
 	} else {
 		schema = dbConf.Globe.Schema + "."
 	}
+	// 遍历服务并将相应的信息附加到 svcStructs
 	for _, service := range serviceList {
 		var svcStruct config.ServiceConfig
 		if isGlobe {
@@ -141,12 +160,12 @@ func RecordSvc(ctx context.Context, dockerClient *client.Client, hostConfig *con
 
 // DelService 清空当前swarm的service
 func DelService(ctx context.Context, dockerClient *client.Client) {
-	// 删除docker swarm中所有的service
 	serviceList, err := dockerClient.ServiceList(ctx, types.ServiceListOptions{})
 	if err != nil {
 		panic(err)
 	}
 
+	// 删除docker swarm中所有的service
 	for _, service := range serviceList {
 		err = dockerClient.ServiceRemove(ctx, service.ID)
 		if err != nil {
@@ -205,10 +224,13 @@ func RebuildSvc(ctx context.Context, dockerClient *client.Client, serviceConfig 
 			logger.SugarLogger.Warnln(resp.Warnings)
 		}
 
+		// 如果是Globe的服务就更新下数据库记录，否则可能删除的时候会有资源遗留
 		if dbConf != nil {
-			dbGlobe := ConnectionInit(dbConf.Globe)
-			if dbGlobe == nil {
-				logger.SugarLogger.Errorln("创建数据库失败, 数据库类型不受支持")
+			dbGlobe, err := ConnectionInit(dbConf.Globe)
+			if err == nil {
+				logger.SugarLogger.Infof("连接到%s数据库: %s@%s:%s/%s", dbConf.Globe.DBType, dbConf.Globe.User, dbConf.Globe.Host, dbConf.Globe.Port, dbConf.Globe.DBName)
+			} else {
+				logger.SugarLogger.Panicln(err)
 			}
 			var serviceResults GGSSrServiceinfo
 			var dbServiceID string
@@ -284,9 +306,11 @@ func ChangeSvcNode(ctx context.Context, dockerClient *client.Client, dbConf *con
 		panic(err)
 	}
 
-	dbGlobe := ConnectionInit(dbConf.Globe)
-	if dbGlobe == nil {
-		logger.SugarLogger.Errorln("创建数据库失败, 数据库类型不受支持")
+	dbGlobe, err := ConnectionInit(dbConf.Globe)
+	if err == nil {
+		logger.SugarLogger.Infof("连接到%s数据库: %s@%s:%s/%s", dbConf.Globe.DBType, dbConf.Globe.User, dbConf.Globe.Host, dbConf.Globe.Port, dbConf.Globe.DBName)
+	} else {
+		logger.SugarLogger.Panicln(err)
 	}
 	var serviceResults GGSSrServiceinfo
 	var schema string
@@ -324,7 +348,7 @@ func ChangeSvcNode(ctx context.Context, dockerClient *client.Client, dbConf *con
 	}
 	var dbServiceID string
 	var dbRecordID string
-
+	serviceResults = GGSSrServiceinfo{}
 	dbGlobe.Table(schema+"ggs_sr_serviceinfo as info1").
 		Joins("Join "+schema+"ggs_sr_serviceinfo as info2 ON info1.PARENTID = info2.ID").
 		Joins("Join "+schema+"ggs_sr_serviceinfo as info3 ON info2.PARENTID = info3.PARENTID").
@@ -334,18 +358,25 @@ func ChangeSvcNode(ctx context.Context, dockerClient *client.Client, dbConf *con
 
 	dbRecordID = strconv.Itoa(serviceResults.ID)
 	dbServiceID = serviceResults.ParamValue
+	logger.SugarLogger.Infof("查询到的服务ID: %s, 服务名称: %s", dbServiceID, serviceName)
 
-	dbServiceCenter := ConnectionInit(dbConf.ServiceCenter)
-	if dbGlobe == nil {
-		logger.SugarLogger.Errorln("创建数据库失败, 数据库类型不受支持")
+	dbServiceCenter, err := ConnectionInit(dbConf.ServiceCenter)
+	if err == nil {
+		logger.SugarLogger.Infof("连接到%s数据库: %s@%s:%s/%s", dbConf.ServiceCenter.DBType, dbConf.ServiceCenter.User, dbConf.ServiceCenter.Host, dbConf.ServiceCenter.Port, dbConf.ServiceCenter.DBName)
+	} else {
+		logger.SugarLogger.Panicln(err)
 	}
-	dbServiceProxy := ConnectionInit(dbConf.ServiceProxy)
-	if dbGlobe == nil {
-		logger.SugarLogger.Errorln("创建数据库失败, 数据库类型不受支持")
+	dbServiceProxy, err := ConnectionInit(dbConf.ServiceProxy)
+	if err == nil {
+		logger.SugarLogger.Infof("连接到%s数据库: %s@%s:%s/%s", dbConf.ServiceProxy.DBType, dbConf.ServiceProxy.User, dbConf.ServiceProxy.Host, dbConf.ServiceProxy.Port, dbConf.ServiceProxy.DBName)
+	} else {
+		logger.SugarLogger.Panicln(err)
 	}
 
 	var serviceCenter ScServiceCluster
 	var serviceProxy ProxyCluster
+	var service ScService
+	var proxy Proxy
 	for _, svc := range serviceList {
 		if svc.Spec.Name == serviceName {
 			for _, node := range nodeList {
@@ -359,9 +390,10 @@ func ChangeSvcNode(ctx context.Context, dockerClient *client.Client, dbConf *con
 					} else {
 						schema = dbConf.ServiceCenter.Schema + "."
 					}
-					dbServiceCenter.Table(schema+"sc_service_cluster").Where("service_address = ?", url+"/").Find(&serviceCenter)
-					serviceCenter.ServiceAddress = strings.Replace(serviceCenter.ServiceAddress, url, newUrl, -1)
-					tx := dbServiceCenter.Table(schema+"sc_service_cluster").Where("service_address = ?", url+"/").Save(&serviceCenter)
+					dbServiceCenter.Table(schema+"sc_service").Where("service_name = ?", serviceName).Find(&service)
+					dbServiceCenter.Table(schema+"sc_service_cluster").Where("service_id = ?", service.ID).Find(&serviceCenter)
+					serviceCenter.ServiceAddress = strings.Replace(serviceCenter.ServiceAddress, serviceCenter.ServiceAddress, newUrl+"/", -1)
+					tx := dbServiceCenter.Table(schema+"sc_service_cluster").Where("service_id = ?", service.ID).Save(&serviceCenter)
 					logger.SugarLogger.Infof("update sc_service_cluster , %d rows affected. ", tx.RowsAffected)
 
 					if dbConf.ServiceProxy.Schema == "" {
@@ -369,9 +401,10 @@ func ChangeSvcNode(ctx context.Context, dockerClient *client.Client, dbConf *con
 					} else {
 						schema = dbConf.ServiceProxy.Schema + "."
 					}
-					dbServiceProxy.Table(schema+"proxy_cluster").Where("physical_address", url+"/").Find(&serviceProxy)
-					serviceProxy.PhysicalAddress = strings.Replace(serviceProxy.PhysicalAddress, url, newUrl, -1)
-					tx = dbServiceProxy.Table(schema+"proxy_cluster").Where("physical_address", url+"/").Save(&serviceProxy)
+					dbServiceProxy.Table(schema+"proxy").Where("servicename", serviceName).Find(&proxy)
+					dbServiceProxy.Table(schema+"proxy_cluster").Where("proxy_id", proxy.ID).Find(&serviceProxy)
+					serviceProxy.PhysicalAddress = strings.Replace(serviceProxy.PhysicalAddress, serviceProxy.PhysicalAddress, newUrl+"/", -1)
+					tx = dbServiceProxy.Table(schema+"proxy_cluster").Where("proxy_id", proxy.ID).Save(&serviceProxy)
 					logger.SugarLogger.Infof("update proxy_cluster , %d rows affected. ", tx.RowsAffected)
 
 					if dbConf.Globe.Schema == "" {
@@ -379,16 +412,20 @@ func ChangeSvcNode(ctx context.Context, dockerClient *client.Client, dbConf *con
 					} else {
 						schema = dbConf.Globe.Schema + "."
 					}
+					serviceResults = GGSSrServiceinfo{}
 					dbGlobe.Table(schema+"ggs_sr_serviceinfo").Where("paramvalue = ?", url).Find(&serviceResults)
 					serviceResults.ParamValue = strings.Replace(serviceResults.ParamValue, url, newUrl, -1)
 					tx = dbGlobe.Table(schema+"ggs_sr_serviceinfo").Where("paramvalue = ?", url).Save(&serviceResults)
 					logger.SugarLogger.Infof("update ggs_sr_serviceinfo , %d rows affected. ", tx.RowsAffected)
 
-					logger.SugarLogger.Infoln("数据库记录服务ID: ", dbServiceID, "被更新成: ", svc.ID)
+					serviceResults = GGSSrServiceinfo{}
 					dbGlobe.Table(schema+"ggs_sr_serviceinfo").Where("id = ?", dbRecordID).Find(&serviceResults)
-					serviceResults.ParamValue = svc.ID
-					tx = dbGlobe.Table(schema+"ggs_sr_serviceinfo").Where("id = ?", dbRecordID).Save(&serviceResults)
-					logger.SugarLogger.Infof("update ggs_sr_serviceinfo , %d rows affected. ", tx.RowsAffected)
+					if serviceResults.ParamValue != svc.ID {
+						logger.SugarLogger.Infoln("数据库记录服务ID: ", dbServiceID, "被更新成: ", svc.ID)
+						serviceResults.ParamValue = svc.ID
+						tx = dbGlobe.Table(schema+"ggs_sr_serviceinfo").Where("id = ?", dbRecordID).Save(&serviceResults)
+						logger.SugarLogger.Infof("update ggs_sr_serviceinfo , %d rows affected. ", tx.RowsAffected)
+					}
 					return nil
 				}
 			}
