@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func ConnectionInit(dbConf config.DB) (*gorm.DB, error) {
+func DBConnectionInit(dbConf config.DB) (*gorm.DB, error) {
 	switch dbConf.DBType {
 	case "mysql":
 		dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
