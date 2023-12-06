@@ -144,17 +144,17 @@ func checkSrcISDockerRootDir(ctx context.Context, dockerClient *client.Client) (
 func calcDir(pathDir string) (count uint64, err error) {
 	err = filepath.WalkDir(pathDir,
 		func(path string, d fs.DirEntry, err error) error {
+			var info fs.FileInfo
 			if !d.IsDir() {
-				info, err := d.Info()
+				info, err = d.Info()
 				count += uint64(info.Size())
-				return err
 			}
-			return nil
+			return err
 		})
 	if err != nil {
 		return 0, err
 	}
-	return count, nil
+	return count, err
 }
 
 // 文件夹大小人类可读化

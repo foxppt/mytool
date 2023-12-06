@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
+	"gorm.io/gorm"
 )
 
 // GeoGlobe ggs_sr_serviceinfo 表结构体
@@ -67,21 +68,25 @@ func RecordSvc(ctx context.Context, dockerClient *client.Client, hostConfig *con
 
 	// ip匹配正则
 	ipRegex := regexp.MustCompile(`\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}`)
-	// 数据库连接对象
-	logger.SugarLogger.Infof("连接ServiceMgr数据库...")
-	dbGlobe, err := DBConnectionInit(dbConf.Globe)
-	if dbGlobe == nil {
-		logger.SugarLogger.Infof("连接到%s数据库: %s@%s:%s/%s", dbConf.Globe.DBType, dbConf.Globe.User, dbConf.Globe.Host, dbConf.Globe.Port, dbConf.Globe.DBName)
-	} else {
-		logger.SugarLogger.Panicln(err)
-	}
+	var dbGlobe *gorm.DB
 	var serviceResults GGSSrServiceinfo
 	var schema string
-	if dbConf.Globe.Schema == "" {
-		schema = dbConf.Globe.Schema
-	} else {
-		schema = dbConf.Globe.Schema + "."
+	if isGlobe {
+		// 数据库连接对象
+		logger.SugarLogger.Infof("连接ServiceMgr数据库...")
+		dbGlobe, err = DBConnectionInit(dbConf.Globe)
+		if err == nil {
+			logger.SugarLogger.Infof("连接到%s数据库: %s@%s:%s/%s", dbConf.Globe.DBType, dbConf.Globe.User, dbConf.Globe.Host, dbConf.Globe.Port, dbConf.Globe.DBName)
+		} else {
+			logger.SugarLogger.Panicln(err)
+		}
+		if dbConf.Globe.Schema == "" {
+			schema = dbConf.Globe.Schema
+		} else {
+			schema = dbConf.Globe.Schema + "."
+		}
 	}
+
 	// 遍历服务并将相应的信息附加到 svcStructs
 	for _, service := range serviceList {
 		var svcStruct config.ServiceConfig
