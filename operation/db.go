@@ -3,6 +3,7 @@ package operation
 import (
 	"fmt"
 	"myTool/config"
+	"myTool/pkg/dm"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
@@ -21,7 +22,12 @@ func DBConnectionInit(dbConf config.DB) (*gorm.DB, error) {
 			dbConf.Host, dbConf.User, dbConf.Passwd, dbConf.DBName, dbConf.Port)
 		db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 		return db, err
+	case "dm":
+		dsn := fmt.Sprintf("dm://%s:%s@%s:%s",
+			dbConf.User, dbConf.Passwd, dbConf.Host, dbConf.Port)
+		db, err := gorm.Open(dm.Open(dsn), &gorm.Config{})
+		return db, err
 	default:
-		return nil, fmt.Errorf("数据库类型%s不受支持, 目前只支持mysql和postgres", dbConf.DBType)
+		return nil, fmt.Errorf("数据库类型%s不受支持, 目前只支持mysql、postgres和达梦", dbConf.DBType)
 	}
 }

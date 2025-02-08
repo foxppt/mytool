@@ -446,6 +446,46 @@ func ChangeSvcNode(ctx context.Context, dockerClient *client.Client, dbConf *con
 	return errors.New("服务" + serviceName + "未找到")
 }
 
+// 解决服务id与数据库对不上的问题
+func UpdateDBServiceID(ctx context.Context, dockerClient *client.Client, dbConf *config.DBConfig) {
+	services, err := dockerClient.ServiceList(ctx, types.ServiceListOptions{})
+	if err != nil {
+		panic(err)
+	}
+	logger.SugarLogger.Infof("连接ServiceMgr数据库...")
+	dbGlobe, err := DBConnectionInit(dbConf.Globe)
+	if err == nil {
+		logger.SugarLogger.Infof("连接到%s数据库: %s@%s:%s/%s", dbConf.Globe.DBType, dbConf.Globe.User, dbConf.Globe.Host, dbConf.Globe.Port, dbConf.Globe.DBName)
+	} else {
+		logger.SugarLogger.Panicln(err)
+	}
+
+	for _, service := range services {
+		var serviceResults GGSSrServiceinfo
+		var dbServiceID string
+		var dbRecordID string
+		var schema string
+		if dbConf.Globe.Schema == "" {
+			schema = dbConf.Globe.Schema
+		} else {
+			schema = dbConf.Globe.Schema + "."
+		}
+		dbGlobe.Table(schema+"ggs_sr_serviceinfo as info1").
+			Joins("Join "+schema+"ggs_sr_serviceinfo as info2 ON info1.PARENTID = info2.ID").
+			Joins("Join "+schema+"ggs_sr_serviceinfo as info3 ON info2.PARENTID = info3.PARENTID").
+			Where("info3.PARAMKEY = ? AND info3.PARAMVALUE = ?", "name", service.Spec.Name).
+			Where("info2.PARAMKEY = ?", "settings").
+			Where("info1.PARAMKEY = ?", "DOCKERID").Find(&serviceResults)
+		dbRecordID = strconv.Itoa(serviceResults.ID)
+		dbServiceID = serviceResults.ParamValue
+		logger.SugarLogger.Infoln("数据库记录服务ID: ", dbServiceID, "被更新成: ", service.ID)
+		dbGlobe.Table(schema+"ggs_sr_serviceinfo").Where("id = ?", dbRecordID).Find(&serviceResults)
+		serviceResults.ParamValue = service.ID
+		tx := dbGlobe.Table(schema+"ggs_sr_serviceinfo").Where("id = ?", dbRecordID).Save(&serviceResults)
+		logger.SugarLogger.Infof("update ggs_sr_serviceinfo , %d rows affected. ", tx.RowsAffected)
+	}
+}
+
 // 取消约束单个服务
 func unConstraitService(ctx context.Context, dockerClient *client.Client, service swarm.Service) {
 	placement := &swarm.Placement{

@@ -228,6 +228,7 @@ func editDataroot(srcDir, destDir string) error {
 		err = os.WriteFile("/etc/docker/daemon.json", updatedJsonStr, 0644)
 		return err
 	}
+	// todo 把文件从srcDir移动到destDir
 }
 
 // 判断是不是同一个挂载点
