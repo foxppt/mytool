@@ -76,7 +76,7 @@ func ChangeDockerBaseDir(ctx context.Context, dockerClient *client.Client, srcDi
 			logger.SugarLogger.Panicln(resp)
 		}
 		// 修改docker配置文件指向目标目录
-		err = editDataroot(srcDir, destDir)
+		err = editDataroot(destDir)
 		if err != nil {
 			return errors.Join(fmt.Errorf("修改配置文件出错: "), err)
 		}
@@ -87,7 +87,7 @@ func ChangeDockerBaseDir(ctx context.Context, dockerClient *client.Client, srcDi
 			err = os.Rename(srcDir, destDir)
 			if err != nil {
 				logger.SugarLogger.Errorln("剪切数据到目标目录时出错: ", err)
-				err = editDataroot(destDir, srcDir)
+				err = editDataroot(srcDir)
 				if err != nil {
 					return errors.Join(fmt.Errorf("修改配置文件出错: "), err)
 				}
@@ -104,7 +104,7 @@ func ChangeDockerBaseDir(ctx context.Context, dockerClient *client.Client, srcDi
 			if errCopy != nil {
 				// 如果拷贝文件失败了得回滚(就是源和目标反过来修改)，不然docker会出问题
 				logger.SugarLogger.Errorln("复制数据到目标目录时出错", errCopy)
-				err = editDataroot(destDir, srcDir)
+				err = editDataroot(srcDir)
 				if err != nil {
 					return errors.Join(fmt.Errorf("修改配置文件出错: "), err)
 				}
@@ -176,7 +176,7 @@ func formatFileSize(size uint64) string {
 }
 
 // 编辑配置文件
-func editDataroot(srcDir, destDir string) error {
+func editDataroot(destDir string) error {
 	// 读取/etc/docker/daemon.json
 	if _, err := os.Stat("/etc/docker/daemon.json"); os.IsNotExist(err) {
 		logger.SugarLogger.Infoln("配置文件/etc/docker/daemon.json不存在")
