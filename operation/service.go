@@ -118,6 +118,7 @@ func RecordSvc(ctx context.Context, dockerClient *client.Client, hostConfig *con
 			match := ipRegex.FindStringSubmatch(url)
 			if len(match) == 0 {
 				logger.SugarLogger.Errorln("未解析到到IP! ")
+				match[0] = hostConfig.Host[0].IP
 			}
 			for _, node := range nodeList {
 				if node.Status.Addr == match[0] {
@@ -125,7 +126,6 @@ func RecordSvc(ctx context.Context, dockerClient *client.Client, hostConfig *con
 				}
 			}
 			svcStruct.Host = match[0]
-
 		}
 		svcStruct.Name = service.Spec.Name
 		svcStruct.RawSvcID = service.ID
