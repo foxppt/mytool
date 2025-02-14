@@ -14,7 +14,7 @@ const tmplDB string = `# 数据库配置文件
 # servicemgr配置
 globe:
 {{- with .Globe }}
-  dbtype: {{ .DBType }} # 数据库类型mysql/postgres/dm
+  dbtype: {{ .DBType }} # 数据库类型枚举: mysql/postgres/dm
   host:   {{ .Host }}   # 数据库主机
   port:   {{ .Port }}   # 数据库端口
   dbname: {{ .DBName }} # 数据库库名
@@ -26,7 +26,7 @@ globe:
 # 服务中心配置
 serviceCenter:
 {{- with .ServiceCenter }}
-  dbtype: {{ .DBType }} # 数据库类型mysql/postgres/dm
+  dbtype: {{ .DBType }} # 数据库类型枚举: mysql/postgres/dm
   host:   {{ .Host }}   # 数据库主机
   port:   {{ .Port }}   # 数据库端口
   dbname: {{ .DBName }} # 数据库库名
@@ -38,7 +38,7 @@ serviceCenter:
 # 服务网关配置
 serviceProxy:
 {{- with .ServiceProxy }}
-  dbtype: {{ .DBType }} # 数据库类型mysql/postgres/dm
+  dbtype: {{ .DBType }} # 数据库类型枚举: mysql/postgres/dm
   host:   {{ .Host }}   # 数据库主机
   port:   {{ .Port }}   # 数据库端口
   dbname: {{ .DBName }} # 数据库库名
