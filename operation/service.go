@@ -21,28 +21,28 @@ import (
 
 // GeoGlobe ggs_sr_serviceinfo 表结构体
 type GGSSrServiceinfo struct {
-	ID         int    `gorm:"column:id;type:int4"`
-	ParamValue string `gorm:"column:paramvalue;type:bytea"`
+	ID         int    `gorm:"column:ID;type:int4"`
+	ParamValue string `gorm:"column:PARAMVALUE;type:bytea"`
 }
 
 // GeoSmarter sc_service_cluster 表结构体
 type ScServiceCluster struct {
-	ServiceAddress string `gorm:"column:service_address;type:varchar(255)"`
+	ServiceAddress string `gorm:"column:SERVICE_ADDRESS;type:varchar(255)"`
 }
 
 // GeoSmarter proxy_cluster 表结构体
 type ProxyCluster struct {
-	PhysicalAddress string `gorm:"column:physical_address;type:varchar(255)"`
+	PhysicalAddress string `gorm:"column:PHYSICAL_ADDRESS;type:varchar(255)"`
 }
 
 // GeoSmarter sc_service 表结构体
 type ScService struct {
-	ID string `gorm:"column:id;type:varchar(255)"`
+	ID string `gorm:"column:ID;type:varchar(255)"`
 }
 
 // GeoSmarter proxy 表结构体
 type Proxy struct {
-	ID string `gorm:"column:id;type:varchar(255)"`
+	ID string `gorm:"column:ID;type:varchar(255)"`
 }
 
 // RecordSvc 记录swarm中service的信息
@@ -91,12 +91,27 @@ func RecordSvc(ctx context.Context, dockerClient *client.Client, hostConfig *con
 	for _, service := range serviceList {
 		var svcStruct config.ServiceConfig
 		if isGlobe {
-			dbGlobe.Table(schema+"ggs_sr_serviceinfo as info1").
-				Joins("Join "+schema+"ggs_sr_serviceinfo as info2 ON info1.PARENTID = info2.ID").
-				Joins("Join "+schema+"ggs_sr_serviceinfo as info3 ON info2.PARENTID = info3.PARENTID").
-				Where("info3.PARAMKEY = ? AND info3.PARAMVALUE = ?", "name", service.Spec.Name).
-				Where("info2.PARAMKEY = ?", "settings").
-				Where("info1.PARAMKEY = ?", "DOCKERSERVICEURL").Find(&serviceResults)
+			if dbConf.Globe.DBType == "dm" {
+				dbGlobe.Raw(`
+				SELECT
+				  info1.ID,
+				  info1.PARAMVALUE 
+				FROM
+				  ggs_sr_serviceinfo info1
+				  JOIN ggs_sr_serviceinfo info2 ON info1.PARENTID = info2.ID 
+				  JOIN ggs_sr_serviceinfo info3 ON info2.PARENTID = info3.PARENTID 
+				WHERE
+				  (info3.PARAMKEY = ? AND UTL_RAW.CAST_TO_VARCHAR2 (DBMS_LOB.SUBSTR(info3.PARAMVALUE, 32767)) = ?) 
+				  AND info2.PARAMKEY = ? 
+				  AND info1.PARAMKEY = ?`, "name", service.Spec.Name, "settings", "DOCKERSERVICEURL").Find(&serviceResults)
+			} else {
+				dbGlobe.Table(schema+"ggs_sr_serviceinfo as info1").
+					Joins("Join "+schema+"ggs_sr_serviceinfo as info2 ON info1.PARENTID = info2.ID").
+					Joins("Join "+schema+"ggs_sr_serviceinfo as info3 ON info2.PARENTID = info3.PARENTID").
+					Where("info3.PARAMKEY = ? AND info3.PARAMVALUE = ?", "name", service.Spec.Name).
+					Where("info2.PARAMKEY = ?", "settings").
+					Where("info1.PARAMKEY = ?", "DOCKERSERVICEURL").Find(&serviceResults)
+			}
 			logger.SugarLogger.Infoln("查询service", service.Spec.Name, "的数据库信息")
 			url := serviceResults.ParamValue
 
@@ -248,18 +263,34 @@ func RebuildSvc(ctx context.Context, dockerClient *client.Client, serviceConfig 
 			} else {
 				schema = dbConf.Globe.Schema + "."
 			}
-			dbGlobe.Table(schema+"ggs_sr_serviceinfo as info1").
-				Joins("Join "+schema+"ggs_sr_serviceinfo as info2 ON info1.PARENTID = info2.ID").
-				Joins("Join "+schema+"ggs_sr_serviceinfo as info3 ON info2.PARENTID = info3.PARENTID").
-				Where("info3.PARAMKEY = ? AND info3.PARAMVALUE = ?", "name", service.Name).
-				Where("info2.PARAMKEY = ?", "settings").
-				Where("info1.PARAMKEY = ?", "DOCKERID").Find(&serviceResults)
+			if dbConf.Globe.DBType == "dm" {
+				dbGlobe.Raw(`
+				SELECT
+				  info1.ID,
+				  info1.PARAMVALUE 
+				FROM
+				  ggs_sr_serviceinfo info1
+				  JOIN ggs_sr_serviceinfo info2 ON info1.PARENTID = info2.ID
+				  JOIN ggs_sr_serviceinfo info3 ON info2.PARENTID = info3.PARENTID 
+				WHERE
+				  (info3.PARAMKEY = ? AND UTL_RAW.CAST_TO_VARCHAR2 (DBMS_LOB.SUBSTR(info3.PARAMVALUE, 32767)) = ?) 
+				  AND info2.PARAMKEY = ? 
+				  AND info1.PARAMKEY = ?`, "name", service.Name, "settings", "DOCKERID").Find(&serviceResults)
+			} else {
+				dbGlobe.Table(schema+"ggs_sr_serviceinfo as info1").
+					Joins("Join "+schema+"ggs_sr_serviceinfo as info2 ON info1.PARENTID = info2.ID").
+					Joins("Join "+schema+"ggs_sr_serviceinfo as info3 ON info2.PARENTID = info3.PARENTID").
+					Where("info3.PARAMKEY = ? AND info3.PARAMVALUE = ?", "name", service.Name).
+					Where("info2.PARAMKEY = ?", "settings").
+					Where("info1.PARAMKEY = ?", "DOCKERID").Find(&serviceResults)
+			}
+
 			dbRecordID = strconv.Itoa(serviceResults.ID)
 			dbServiceID = serviceResults.ParamValue
 			logger.SugarLogger.Infoln("数据库记录服务ID: ", dbServiceID, "被更新成: ", resp.ID)
-			dbGlobe.Table(schema+"ggs_sr_serviceinfo").Where("id = ?", dbRecordID).Find(&serviceResults)
+			dbGlobe.Table(schema+"ggs_sr_serviceinfo").Where("ID = ?", dbRecordID).Find(&serviceResults)
 			serviceResults.ParamValue = resp.ID
-			tx := dbGlobe.Table(schema+"ggs_sr_serviceinfo").Where("id = ?", dbRecordID).Save(&serviceResults)
+			tx := dbGlobe.Table(schema+"ggs_sr_serviceinfo").Where("ID = ?", dbRecordID).Save(&serviceResults)
 			logger.SugarLogger.Infof("update ggs_sr_serviceinfo , %d rows affected. ", tx.RowsAffected)
 		}
 	}
@@ -327,12 +358,28 @@ func ChangeSvcNode(ctx context.Context, dockerClient *client.Client, dbConf *con
 	} else {
 		schema = dbConf.Globe.Schema + "."
 	}
-	dbGlobe.Table(schema+"ggs_sr_serviceinfo as info1").
-		Joins("Join "+schema+"ggs_sr_serviceinfo as info2 ON info1.PARENTID = info2.ID").
-		Joins("Join "+schema+"ggs_sr_serviceinfo as info3 ON info2.PARENTID = info3.PARENTID").
-		Where("info3.PARAMKEY = ? AND info3.PARAMVALUE = ?", "name", serviceName).
-		Where("info2.PARAMKEY = ?", "settings").
-		Where("info1.PARAMKEY = ?", "DOCKERSERVICEURL").Find(&serviceResults)
+	if dbConf.Globe.DBType == "dm" {
+		dbGlobe.Raw(`
+		SELECT
+		  info1.ID,
+		  info1.PARAMVALUE 
+		FROM
+		  ggs_sr_serviceinfo info1
+		  JOIN ggs_sr_serviceinfo info2 ON info1.PARENTID = info2.ID
+		  JOIN ggs_sr_serviceinfo info3 ON info2.PARENTID = info3.PARENTID 
+		WHERE
+		  (info3.PARAMKEY = ? AND UTL_RAW.CAST_TO_VARCHAR2 (DBMS_LOB.SUBSTR(info3.PARAMVALUE, 32767)) = ?) 
+		  AND info2.PARAMKEY = ? 
+		  AND info1.PARAMKEY = ?`, "name", serviceName, "settings", "DOCKERSERVICEURL").Find(&serviceResults)
+	} else {
+		dbGlobe.Table(schema+"ggs_sr_serviceinfo as info1").
+			Joins("Join "+schema+"ggs_sr_serviceinfo as info2 ON info1.PARENTID = info2.ID").
+			Joins("Join "+schema+"ggs_sr_serviceinfo as info3 ON info2.PARENTID = info3.PARENTID").
+			Where("info3.PARAMKEY = ? AND info3.PARAMVALUE = ?", "name", serviceName).
+			Where("info2.PARAMKEY = ?", "settings").
+			Where("info1.PARAMKEY = ?", "DOCKERSERVICEURL").Find(&serviceResults)
+	}
+
 	url := serviceResults.ParamValue
 	if url == "" {
 		logger.SugarLogger.Panicln("结果为0行, 服务未找到. ")
@@ -357,12 +404,27 @@ func ChangeSvcNode(ctx context.Context, dockerClient *client.Client, dbConf *con
 	var dbServiceID string
 	var dbRecordID string
 	serviceResults = GGSSrServiceinfo{}
-	dbGlobe.Table(schema+"ggs_sr_serviceinfo as info1").
-		Joins("Join "+schema+"ggs_sr_serviceinfo as info2 ON info1.PARENTID = info2.ID").
-		Joins("Join "+schema+"ggs_sr_serviceinfo as info3 ON info2.PARENTID = info3.PARENTID").
-		Where("info3.PARAMKEY = ? AND info3.PARAMVALUE = ?", "name", serviceName).
-		Where("info2.PARAMKEY = ?", "settings").
-		Where("info1.PARAMKEY = ?", "DOCKERID").Find(&serviceResults)
+	if dbConf.Globe.DBType == "dm" {
+		dbGlobe.Raw(`
+		SELECT
+		  info1.ID,
+		  info1.PARAMVALUE 
+		FROM
+		  ggs_sr_serviceinfo info1
+		  JOIN ggs_sr_serviceinfo info2 ON info1.PARENTID = info2.ID
+		  JOIN ggs_sr_serviceinfo info3 ON info2.PARENTID = info3.PARENTID 
+		WHERE
+		  (info3.PARAMKEY = ? AND UTL_RAW.CAST_TO_VARCHAR2 (DBMS_LOB.SUBSTR(info3.PARAMVALUE, 32767)) = ?) 
+		  AND info2.PARAMKEY = ? 
+		  AND info1.PARAMKEY = ?`, "name", serviceName, "settings", "DOCKERID").Find(&serviceResults)
+	} else {
+		dbGlobe.Table(schema+"ggs_sr_serviceinfo as info1").
+			Joins("Join "+schema+"ggs_sr_serviceinfo as info2 ON info1.PARENTID = info2.ID").
+			Joins("Join "+schema+"ggs_sr_serviceinfo as info3 ON info2.PARENTID = info3.PARENTID").
+			Where("info3.PARAMKEY = ? AND info3.PARAMVALUE = ?", "name", serviceName).
+			Where("info2.PARAMKEY = ?", "settings").
+			Where("info1.PARAMKEY = ?", "DOCKERID").Find(&serviceResults)
+	}
 
 	dbRecordID = strconv.Itoa(serviceResults.ID)
 	dbServiceID = serviceResults.ParamValue
@@ -424,17 +486,17 @@ func ChangeSvcNode(ctx context.Context, dockerClient *client.Client, dbConf *con
 						schema = dbConf.Globe.Schema + "."
 					}
 					serviceResults = GGSSrServiceinfo{}
-					dbGlobe.Table(schema+"ggs_sr_serviceinfo").Where("paramvalue = ?", url).Find(&serviceResults)
+					dbGlobe.Table(schema+"ggs_sr_serviceinfo").Where("PARAMVALUE = ?", url).Find(&serviceResults)
 					serviceResults.ParamValue = strings.Replace(serviceResults.ParamValue, url, newUrl, -1)
-					tx = dbGlobe.Table(schema+"ggs_sr_serviceinfo").Where("paramvalue = ?", url).Save(&serviceResults)
+					tx = dbGlobe.Table(schema+"ggs_sr_serviceinfo").Where("PARAMVALUE = ?", url).Save(&serviceResults)
 					logger.SugarLogger.Infof("update ggs_sr_serviceinfo , %d rows affected. ", tx.RowsAffected)
 
 					serviceResults = GGSSrServiceinfo{}
-					dbGlobe.Table(schema+"ggs_sr_serviceinfo").Where("id = ?", dbRecordID).Find(&serviceResults)
+					dbGlobe.Table(schema+"ggs_sr_serviceinfo").Where("ID = ?", dbRecordID).Find(&serviceResults)
 					if serviceResults.ParamValue != svc.ID {
 						logger.SugarLogger.Infoln("数据库记录服务ID: ", dbServiceID, "被更新成: ", svc.ID)
 						serviceResults.ParamValue = svc.ID
-						tx = dbGlobe.Table(schema+"ggs_sr_serviceinfo").Where("id = ?", dbRecordID).Save(&serviceResults)
+						tx = dbGlobe.Table(schema+"ggs_sr_serviceinfo").Where("ID = ?", dbRecordID).Save(&serviceResults)
 						logger.SugarLogger.Infof("update ggs_sr_serviceinfo , %d rows affected. ", tx.RowsAffected)
 					}
 					return nil
@@ -470,18 +532,33 @@ func UpdateDBServiceID(ctx context.Context, dockerClient *client.Client, dbConf 
 		} else {
 			schema = dbConf.Globe.Schema + "."
 		}
-		dbGlobe.Table(schema+"ggs_sr_serviceinfo as info1").
-			Joins("Join "+schema+"ggs_sr_serviceinfo as info2 ON info1.PARENTID = info2.ID").
-			Joins("Join "+schema+"ggs_sr_serviceinfo as info3 ON info2.PARENTID = info3.PARENTID").
-			Where("info3.PARAMKEY = ? AND info3.PARAMVALUE = ?", "name", service.Spec.Name).
-			Where("info2.PARAMKEY = ?", "settings").
-			Where("info1.PARAMKEY = ?", "DOCKERID").Find(&serviceResults)
+		if dbConf.Globe.DBType == "dm" {
+			dbGlobe.Raw(`
+			SELECT
+			  info1.ID,
+			  info1.PARAMVALUE 
+			FROM
+			  ggs_sr_serviceinfo info1
+			  JOIN ggs_sr_serviceinfo info2 ON info1.PARENTID = info2.ID
+			  JOIN ggs_sr_serviceinfo info3 ON info2.PARENTID = info3.PARENTID 
+			WHERE
+			  (info3.PARAMKEY = ? AND UTL_RAW.CAST_TO_VARCHAR2 (DBMS_LOB.SUBSTR(info3.PARAMVALUE, 32767)) = ?) 
+			  AND info2.PARAMKEY = ? 
+			  AND info1.PARAMKEY = ?`, "name", service.Spec.Name, "settings", "DOCKERID").Find(&serviceResults)
+		} else {
+			dbGlobe.Table(schema+"ggs_sr_serviceinfo as info1").
+				Joins("Join "+schema+"ggs_sr_serviceinfo as info2 ON info1.PARENTID = info2.ID").
+				Joins("Join "+schema+"ggs_sr_serviceinfo as info3 ON info2.PARENTID = info3.PARENTID").
+				Where("info3.PARAMKEY = ? AND info3.PARAMVALUE = ?", "name", service.Spec.Name).
+				Where("info2.PARAMKEY = ?", "settings").
+				Where("info1.PARAMKEY = ?", "DOCKERID").Find(&serviceResults)
+		}
 		dbRecordID = strconv.Itoa(serviceResults.ID)
 		dbServiceID = serviceResults.ParamValue
 		logger.SugarLogger.Infoln("数据库记录服务ID: ", dbServiceID, "被更新成: ", service.ID)
-		dbGlobe.Table(schema+"ggs_sr_serviceinfo").Where("id = ?", dbRecordID).Find(&serviceResults)
+		dbGlobe.Table(schema+"ggs_sr_serviceinfo").Where("ID = ?", dbRecordID).Find(&serviceResults)
 		serviceResults.ParamValue = service.ID
-		tx := dbGlobe.Table(schema+"ggs_sr_serviceinfo").Where("id = ?", dbRecordID).Save(&serviceResults)
+		tx := dbGlobe.Table(schema+"ggs_sr_serviceinfo").Where("ID = ?", dbRecordID).Save(&serviceResults)
 		logger.SugarLogger.Infof("update ggs_sr_serviceinfo , %d rows affected. ", tx.RowsAffected)
 	}
 }
