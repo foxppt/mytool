@@ -392,9 +392,8 @@ func ChangeSvcNode(ctx context.Context, dockerClient *client.Client, dbConf *con
 				v = "//" + nodeTarget
 			}
 			newUrl = newUrl + v
-			if k == len(strings.Split(url, ":"))-1 {
+			if k != len(strings.Split(url, ":"))-1 {
 				// 最后一次循环,不需要再加":"了
-			} else {
 				newUrl = newUrl + ":"
 			}
 		}
